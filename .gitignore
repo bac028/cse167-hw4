@@ -1,0 +1,7 @@
+packages/
+.vs/
+Debug/
+Release/
+*.vcxproj*
+*.sln
+*.obj
