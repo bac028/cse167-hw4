@@ -228,7 +228,6 @@ void Geometry::update() {
 
 }
 
-
 void BezierCurve::init(float* points) {
 
 	this->points = points;
@@ -254,18 +253,15 @@ void BezierCurve::init(float* points) {
 	glGenBuffers(1, &vbo);
 
 	// Bind to the VAO.
-	// This tells OpenGL which data it should be paying attention to
 	glBindVertexArray(vao);
 
 	// Bind to the first VBO. We will use it to store the points.
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
 	
 	// Pass in the data.
-	//glBufferData(GL_ARRAY_BUFFER, sizeof(float) * size, points, GL_STATIC_DRAW);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * curvePoints.size(), curvePoints.data(), GL_STATIC_DRAW);
 
 	// Enable vertex attribute 0. 
-	// We will be able to access points through it.
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
 
@@ -285,7 +281,6 @@ void BezierCurve::draw(glm::mat4 C, unsigned int shaderProgram, unsigned int mod
 
 	// Draw points 
 	glDrawArrays(GL_LINE_STRIP, 0, 3 * curvePoints.size());
-	//glDrawArrays(GL_LINE_STRIP, 0, size);
 
 	// Unbind from the VAO.
 	glBindVertexArray(0);

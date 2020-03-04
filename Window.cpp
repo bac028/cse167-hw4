@@ -11,8 +11,8 @@ namespace {
 	Geometry* testObject;
 	Transform* objects;
 
-	glm::vec3 eye(0, 5, 10);	// Camera position.
-	glm::vec3 center(0, 5, -1); // The point we are looking at.
+	glm::vec3 eye(0, 0, 10);	// Camera position.
+	glm::vec3 center(0, 0, -1); // The point we are looking at.
 	glm::vec3 up(0, 1, 0);		// The up direction of the camera.
 
 	// for camera rotation
@@ -72,47 +72,47 @@ namespace {
 
 	float skyboxVertices[] = {
 		// positions          
-		-1000.0f,  1000.0f, -1000.0f,
-		-1000.0f, -1000.0f, -1000.0f,
-		 1000.0f, -1000.0f, -1000.0f,
-		 1000.0f, -1000.0f, -1000.0f,
-		 1000.0f,  1000.0f, -1000.0f,
-		-1000.0f,  1000.0f, -1000.0f,
+		-10.0f,  10.0f, -10.0f,
+		   -10.0f, -10.0f, -10.0f,
+		   10.0f, -10.0f, -10.0f,
+		   10.0f, -10.0f, -10.0f,
+		   10.0f,  10.0f, -10.0f,
+		   -10.0f,  10.0f, -10.0f,
 
-		-1000.0f, -1000.0f,  1000.0f,
-		-1000.0f, -1000.0f, -1000.0f,
-		-1000.0f,  1000.0f, -1000.0f,
-		-1000.0f,  1000.0f, -1000.0f,
-		-1000.0f,  1000.0f,  1000.0f,
-		-1000.0f, -1000.0f,  1000.0f,
+		   -10.0f, -10.0f,  10.0f,
+		   -10.0f, -10.0f, -10.0f,
+		   -10.0f,  10.0f, -10.0f,
+		   -10.0f,  10.0f, -10.0f,
+		   -10.0f,  10.0f,  10.0f,
+		   -10.0f, -10.0f,  10.0f,
 
-		 1000.0f, -1000.0f, -1000.0f,
-		 1000.0f, -1000.0f,  1000.0f,
-		 1000.0f,  1000.0f,  1000.0f,
-		 1000.0f,  1000.0f,  1000.0f,
-		 1000.0f,  1000.0f, -1000.0f,
-		 1000.0f, -1000.0f, -1000.0f,
+		   10.0f, -10.0f, -10.0f,
+		   10.0f, -10.0f,  10.0f,
+		   10.0f,  10.0f,  10.0f,
+		   10.0f,  10.0f,  10.0f,
+		   10.0f,  10.0f, -10.0f,
+		   10.0f, -10.0f, -10.0f,
 
-		-1000.0f, -1000.0f,  1000.0f,
-		-1000.0f,  1000.0f,  1000.0f,
-		 1000.0f,  1000.0f,  1000.0f,
-		 1000.0f,  1000.0f,  1000.0f,
-		 1000.0f, -1000.0f,  1000.0f,
-		-1000.0f, -1000.0f,  1000.0f,
+		   -10.0f, -10.0f,  10.0f,
+		   -10.0f,  10.0f,  10.0f,
+		   10.0f,  10.0f,  10.0f,
+		   10.0f,  10.0f,  10.0f,
+		   10.0f, -10.0f,  10.0f,
+		   -10.0f, -10.0f,  10.0f,
 
-		-1000.0f,  1000.0f, -1000.0f,
-		 1000.0f,  1000.0f, -1000.0f,
-		 1000.0f,  1000.0f,  1000.0f,
-		 1000.0f,  1000.0f,  1000.0f,
-		-1000.0f,  1000.0f,  1000.0f,
-		-1000.0f,  1000.0f, -1000.0f,
+		   -10.0f,  10.0f, -10.0f,
+		   10.0f,  10.0f, -10.0f,
+		   10.0f,  10.0f,  10.0f,
+		   10.0f,  10.0f,  10.0f,
+		   -10.0f,  10.0f,  10.0f,
+		   -10.0f,  10.0f, -10.0f,
 
-		-1000.0f, -1000.0f, -1000.0f,
-		-1000.0f, -1000.0f,  1000.0f,
-		 1000.0f, -1000.0f, -1000.0f,
-		 1000.0f, -1000.0f, -1000.0f,
-		-1000.0f, -1000.0f,  1000.0f,
-		 1000.0f, -1000.0f,  1000.0f
+		   -10.0f, -10.0f, -10.0f,
+		   -10.0f, -10.0f,  10.0f,
+		   10.0f, -10.0f, -10.0f,
+		   10.0f, -10.0f, -10.0f,
+		   -10.0f, -10.0f,  10.0f,
+		   10.0f, -10.0f,  10.0f
 	};
 
 	unsigned int cubemapTexture;
@@ -313,6 +313,10 @@ void Window::displayCallback(GLFWwindow* window) {
 }
 
 void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+
+	glm::vec3 direction = glm::vec3(center.x, 0, center.z) - glm::vec3(eye.x, 0, eye.z);
+	glm::vec4 newCenter;
+	glm::vec4 newEye;
 	
 	 // Check for a key press.
 	if (action == GLFW_PRESS)
@@ -330,21 +334,38 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
 			// Deals with lowercase key presses
 			switch (key)
 			{
-			// TODO
 			case GLFW_KEY_W:
-				glm::vec3 direction = center - eye;
+				//view = glm::translate(glm::mat4(1), glm::vec3(0, 0, 1)) * view;
+				newEye = glm::translate(glm::mat4(1), direction) * glm::vec4(eye, 1);
+				eye = glm::vec3(newEye.x, newEye.y, newEye.z);
+				newCenter = glm::translate(glm::mat4(1), direction) * glm::vec4(center, 1);
+				center = glm::vec3(newCenter.x, newCenter.y, newCenter.z);
+				view = glm::lookAt(eye, center, up);
 				break;
 
 			case GLFW_KEY_A:
-
+				//view = glm::translate(glm::mat4(1), glm::vec3(1, 0, 0)) * view;
+				newEye = glm::translate(glm::mat4(1), glm::cross(-direction, up)) * glm::vec4(eye, 1);
+				eye = glm::vec3(newEye.x, newEye.y, newEye.z);
+				newCenter = glm::translate(glm::mat4(1), glm::cross(-direction, up)) * glm::vec4(center, 1);
+				center = glm::vec3(newCenter.x, newCenter.y, newCenter.z);
+				view = glm::lookAt(eye, center, up);
 				break;
 
 			case GLFW_KEY_S:
-
+				newEye = glm::translate(glm::mat4(1), -direction) * glm::vec4(eye, 1);
+				eye = glm::vec3(newEye.x, newEye.y, newEye.z);
+				newCenter = glm::translate(glm::mat4(1), -direction) * glm::vec4(center, 1);
+				center = glm::vec3(newCenter.x, newCenter.y, newCenter.z);
+				view = glm::lookAt(eye, center, up);
 				break;
 
 			case GLFW_KEY_D:
-
+				newEye = glm::translate(glm::mat4(1), glm::cross(direction, up)) * glm::vec4(eye, 1);
+				eye = glm::vec3(newEye.x, newEye.y, newEye.z);
+				newCenter = glm::translate(glm::mat4(1), glm::cross(direction, up)) * glm::vec4(center, 1);
+				center = glm::vec3(newCenter.x, newCenter.y, newCenter.z);
+				view = glm::lookAt(eye, center, up);
 				break;
 
 			case GLFW_KEY_0:
