@@ -346,8 +346,11 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
 
 		case GLFW_KEY_LEFT_CONTROL:
 			sprinting = action != GLFW_RELEASE;
+			break;
 	}
 
+	playerObject->setMoving(holdingW || holdingA || holdingS || holdingD);
+	
 	// Check for a key press.
 	if (action == GLFW_PRESS)
 	{
@@ -416,7 +419,7 @@ void Window::cursor_position_callback(GLFWwindow* window, double xpos, double yp
 	}
 
 	glm::vec3 pointDirection = currPoint - lastPoint;
-	float velocity = glm::length(glm::vec3(pointDirection.x, 0, pointDirection.z));
+	float velocity = glm::length(glm::vec3(pointDirection.x, 0, 0));
 	if (velocity > 0.0001) {
 		glm::vec3 rotAxis = glm::cross(lastPoint, currPoint);
 		float rot_angle = velocity * 100.0f;
@@ -435,6 +438,11 @@ void Window::cursor_position_callback(GLFWwindow* window, double xpos, double yp
 			if (pitch > 89.9) pitch = 89.9;
 			if (pitch < -89.9) pitch = -89.9;
 
+			if (!freeCamera) {
+				pitch = pitch > 44.9 ? 44.9 : pitch;
+				pitch = pitch < -44.9 ? -44.9 : pitch;
+			}
+
 			glm::vec3 directionCamera;
 			directionCamera.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
 			directionCamera.y = sin(glm::radians(pitch));
@@ -452,13 +460,12 @@ void Window::cursor_position_callback(GLFWwindow* window, double xpos, double yp
 				playerObject->setModel(newModel);
 				eye = playerObject->getEyePosition();
 				center = eye + glm::vec3(-directionCamera.x, directionCamera.y, -directionCamera.z);
-				//printf("%f %f %f\n", eye.x, eye.y, eye.z);
+				if (thirdPerson) {
+					glm::vec4 newEye = glm::translate(glm::mat4(1.0f), 15.0f * glm::vec3(directionCamera.x, -directionCamera.y, directionCamera.z)) * glm::vec4(eye, 1.0f);
+					eye = glm::vec3(newEye.x, newEye.y, newEye.z);
+				}
 			}
-			if(thirdPerson){
-				printf("Enter 3rd\n");
-				glm::vec4 newEye = glm::translate(glm::mat4(1.0f), glm::vec3(directionCamera.x, 0, directionCamera.z)) * glm::vec4(eye, 1.0f);
-				eye = glm::vec3(newEye.x, newEye.y, newEye.z);
-			}
+			
 			view = glm::lookAt(eye, center, up);
 		}
 	}
@@ -543,10 +550,18 @@ glm::vec3 Window::checkInSkybox(glm::vec4 point) {
 		if (point.z > 95 || point.z < -95) {
 			point.z = eye.z;
 		}
-	}
+	} 
+
 	return glm::vec3(point.x, point.y, point.z);
 }
 
+bool checkCollision(glm::vec3 objOne, glm::vec3 objTwo){
+	if(playerObject->maxX >= 100 && playerObject->minX <= -100 &&
+	playerObject->maxY >= 100 && playerObject->minY <= -100 &&
+	playerObject->maxZ >= 100 && playerObject->minZ <= -100 ){
+		//currentPosition = previews
+	}
+}
 void Window::handleMovement() {
 
 	float speedModifier = sprinting ? 3.00f : 1.0f;

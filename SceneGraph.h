@@ -24,6 +24,7 @@ public:
 
 	virtual void draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelLoc) = 0;
 	virtual void update() = 0;
+	virtual void setMoving(bool moving) = 0;
 };
 
 // concrete classes: Transform, Geometry, Group
@@ -32,11 +33,12 @@ class Transform : public Node {
 private:
 	std::vector<Node*> children; // children pointers
 
-	float minX, minY, minZ, maxX, maxY, maxZ;
+	float animationSpeed = 0.2f;
 
 	glm::vec3 rotationVector;
 	float maxA, minA;
 	bool animated = false;
+	bool moving = false;
 	int dir = 1;
 
 	float currentX, currentY, currentZ, currentScale, currentAngle;
@@ -44,6 +46,7 @@ private:
 public:
 	glm::mat4 M; // transformation matrix
 	Transform(glm::mat4 M);
+	float minX, minY, minZ, maxX, maxY, maxZ;
 
 	void addChild(Node* child);
 	void removeChild();
@@ -57,6 +60,8 @@ public:
 
 	glm::mat4 getModel() { return M; }
 	void setModel(glm::mat4 newModel) { M = newModel; }
+
+	void setMoving(bool moving);
 
 	// overwrite node methods
 	void draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelLoc);
@@ -83,7 +88,8 @@ public:
 
 	// overwrite node methods
 	void draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelLoc);
-	void update();
+	void update() {};
+	void setMoving(bool moving) {};
 };
 
 class Robot : public Transform {
@@ -93,7 +99,10 @@ public:
 	Robot(glm::mat4 M);
 	~Robot();
 
-	glm::vec3 getEyePosition() { return glm::vec3((M * eye->getModel())[3].x, (M * eye->getModel())[3].y, (M * eye->getModel() )[3].z); };
+	glm::vec3 getEyePosition() { 
+		glm::mat4 globalPosition = M * eye->getModel();
+		return glm::vec3(globalPosition[3].x, globalPosition[3].y, globalPosition[3].z); 
+	};
 };
 
 #endif

@@ -59,11 +59,11 @@ void Transform::update() {
 		children[i]->update();
 	}
 
-	if (animated) {
+	if (animated && moving) {
 		if (currentAngle > maxA) dir *= -1;
 		if (currentAngle < minA) dir *= -1;
-		M = glm::rotate(M, glm::radians(dir * 0.1f), rotationVector);
-		currentAngle += dir * 0.1f;
+		M = glm::rotate(M, glm::radians(dir * animationSpeed), rotationVector);
+		currentAngle += dir * animationSpeed;
 	}
 }
 
@@ -76,6 +76,13 @@ void Transform::translate(float x, float y, float z) {
 
 void Transform::scale(float s) {
 	M = glm::scale(M, glm::vec3(s, s, s));
+}
+
+void Transform::setMoving(bool moving) { 
+	this->moving = moving;
+	for (int i = 0; i < children.size(); i++) {
+		children[i]->setMoving(moving);
+	}
 }
 
 Robot::Robot(glm::mat4 M) : Transform(M) {
@@ -294,8 +301,3 @@ void Geometry::draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelL
 	glBindVertexArray(0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0); // unbind from ebo
 }
-
-void Geometry::update() {
-
-}
-
