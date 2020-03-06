@@ -9,11 +9,13 @@ namespace {
 	std::string windowTitle("Minecraft");
 
 	Geometry* testObject;
+	Robot* playerObject;
 	Transform* objects;
 
-	glm::vec3 eye(0, 0, 10);	// Camera position.
-	glm::vec3 center(0, 0, -1); // The point we are looking at.
-	glm::vec3 up(0, 1, 0);		// The up direction of the camera.
+	glm::vec3 playerCenter(0, 0, 0);
+	glm::vec3 eye(0, 1, 1.2);	 // Camera position.
+	glm::vec3 center(0, 0, 10);  // The point we are looking at.
+	glm::vec3 up(0, 1, 0);		 // The up direction of the camera.
 
 	// movement flags
 	bool holdingW = false, holdingA = false, holdingS = false, holdingD = false, sprinting = false;
@@ -58,6 +60,8 @@ namespace {
 	bool mousePressed_L = false;
 	bool noLastPoint = true;
 	bool mousePressed_R = false;
+	bool freeCamera = false;
+	bool thirdPerson = false;
 	glm::vec3 lastPoint;
 
 	float mode = 0.0f;
@@ -65,12 +69,12 @@ namespace {
 
 	// skybox files
 	std::vector<std::string> faces = {
-		"PalldioPalace_intern_right.jpg",
-		"PalldioPalace_intern_left.jpg",
-		"PalldioPalace_intern_top.jpg",
-		"PalldioPalace_intern_base.jpg",
-		"PalldioPalace_intern_front.jpg",
-		"PalldioPalace_intern_back.jpg"
+		"skybox/right.jpg",
+		"skybox/left.jpg",
+		"skybox/top.jpg",
+		"skybox/bottom.jpg",
+		"skybox/front.jpg",
+		"skybox/back.jpg"
 	};
 
 	float skyboxVertices[] = {
@@ -159,7 +163,7 @@ bool Window::initializeProgram() {
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 
 	// only see inside of box
-	glEnable(GL_CULL_FACE);
+	glEnable(GL_CULL_FACE); 
 	glCullFace(GL_BACK);
 
 	// load skybox faces
@@ -176,8 +180,12 @@ bool Window::initializeObjects() {
 
 	testObject = new Geometry();
 	testObject->init("bunny", 1);
+
+	playerObject = new Robot(glm::translate(glm::mat4(1), playerCenter));
+
 	objects = new Transform(glm::mat4(1));
-	objects->addChild(testObject);
+	objects->addChild(playerObject);
+	//objects->addChild(testObject);
 
 	return true;
 }
@@ -204,8 +212,6 @@ GLFWwindow* Window::createWindow(int width, int height) {
 	glfwWindowHint(GLFW_SAMPLES, 4);
 
 #ifdef __APPLE__ 
-	// Apple implements its own version of OpenGL and requires special treatments
-	// to make it uses modern OpenGL.
 
 	// Ensure that minimum OpenGL version is 3.3
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -321,25 +327,25 @@ void Window::displayCallback(GLFWwindow* window) {
 
 void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 
+	// check for key press or release
 	switch (key) {
-	case GLFW_KEY_W:
-		holdingW = action != GLFW_RELEASE;
-		break;
+		case GLFW_KEY_W:
+			holdingW = action != GLFW_RELEASE;
+			break;
+		case GLFW_KEY_A:
+			holdingA = action != GLFW_RELEASE;
+			break;
 
-	case GLFW_KEY_A:
-		holdingA = action != GLFW_RELEASE;
-		break;
+		case GLFW_KEY_S:
+			holdingS = action != GLFW_RELEASE;
+			break;
 
-	case GLFW_KEY_S:
-		holdingS = action != GLFW_RELEASE;
-		break;
+		case GLFW_KEY_D:
+			holdingD = action != GLFW_RELEASE;
+			break;
 
-	case GLFW_KEY_D:
-		holdingD = action != GLFW_RELEASE;
-		break;
-
-	case GLFW_KEY_LEFT_CONTROL:
-		sprinting = action != GLFW_RELEASE;
+		case GLFW_KEY_LEFT_CONTROL:
+			sprinting = action != GLFW_RELEASE;
 	}
 
 	// Check for a key press.
@@ -358,17 +364,26 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
 			// Deals with lowercase key presses
 			switch (key)
 			{
+				case GLFW_KEY_0:
+					cameraControl = cameraControl == 0.0f ? 1.0f : 0.0f;
+					break;
 
-			case GLFW_KEY_0:
-				cameraControl = 1.0f ? cameraControl == 0.0f : 0.0f;
-				break;
+				case GLFW_KEY_F:
+					freeCamera = !freeCamera;
+					thirdPerson = false;
+					break;
 
-			case GLFW_KEY_ESCAPE:
-				glfwSetWindowShouldClose(window, GL_TRUE);
-				break;
+				case GLFW_KEY_3:
+					freeCamera = false;
+					thirdPerson = !thirdPerson;
+					break;
 
-			default:
-				break;
+				case GLFW_KEY_ESCAPE:
+					glfwSetWindowShouldClose(window, GL_TRUE);
+					break;
+
+				default:
+					break;
 			}
 		}
 	}
@@ -400,12 +415,11 @@ void Window::cursor_position_callback(GLFWwindow* window, double xpos, double yp
 		return;
 	}
 
-	glm::vec3 direction = currPoint - lastPoint;
-	float velocity = glm::length(direction);
+	glm::vec3 pointDirection = currPoint - lastPoint;
+	float velocity = glm::length(glm::vec3(pointDirection.x, 0, pointDirection.z));
 	if (velocity > 0.0001) {
 		glm::vec3 rotAxis = glm::cross(lastPoint, currPoint);
-		float rot_angle = velocity * 50;
-			
+		float rot_angle = velocity * 100.0f;
 			
 		if (!cameraControl && mousePressed_L) {
 			glm::mat4 prevModel = objects->getModel();
@@ -415,8 +429,8 @@ void Window::cursor_position_callback(GLFWwindow* window, double xpos, double yp
 		}
 
 		if (cameraControl) {
-			yaw += direction.x * 100;
-			pitch += direction.y * 100;
+			yaw += pointDirection.x * 100;
+			pitch += pointDirection.y * 100;
 
 			if (pitch > 89.9) pitch = 89.9;
 			if (pitch < -89.9) pitch = -89.9;
@@ -429,8 +443,22 @@ void Window::cursor_position_callback(GLFWwindow* window, double xpos, double yp
 
 			up = glm::normalize(glm::cross(glm::normalize(glm::cross(directionCamera, glm::vec3(0, 1, 0))), directionCamera));
 
-			center = eye + directionCamera;
-				
+			if (freeCamera) center = eye + directionCamera;
+			
+			if (!freeCamera) {
+				glm::mat4 prevModel = playerObject->getModel();
+				glm::mat4 newModel = glm::rotate(glm::mat4(1), glm::radians(-rot_angle), glm::vec3(0, rotAxis.y, 0));
+				newModel = prevModel * newModel;
+				playerObject->setModel(newModel);
+				eye = playerObject->getEyePosition();
+				center = eye + glm::vec3(-directionCamera.x, directionCamera.y, -directionCamera.z);
+				//printf("%f %f %f\n", eye.x, eye.y, eye.z);
+			}
+			if(thirdPerson){
+				printf("Enter 3rd\n");
+				glm::vec4 newEye = glm::translate(glm::mat4(1.0f), glm::vec3(directionCamera.x, 0, directionCamera.z)) * glm::vec4(eye, 1.0f);
+				eye = glm::vec3(newEye.x, newEye.y, newEye.z);
+			}
 			view = glm::lookAt(eye, center, up);
 		}
 	}
@@ -470,6 +498,7 @@ void Window::mouse_button_callback(GLFWwindow* window, int button, int action, i
 }
 
 void Window::scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+
 }
 
 unsigned int Window::loadCubemap(std::vector<std::string> faces) {
@@ -503,46 +532,73 @@ unsigned int Window::loadCubemap(std::vector<std::string> faces) {
 	return textureID;
 }
 
+glm::vec3 Window::checkInSkybox(glm::vec4 point) {
+	if (freeCamera) {
+		if (point.x > 95 || point.x < -95) {
+			point.x = eye.x;
+		}
+		if (point.y > 95 || point.y < -95) {
+			point.y = eye.y;
+		}
+		if (point.z > 95 || point.z < -95) {
+			point.z = eye.z;
+		}
+	}
+	return glm::vec3(point.x, point.y, point.z);
+}
+
 void Window::handleMovement() {
 
-	float speedModifier = sprinting ? 0.0175f : 0.01f;
-	glm::vec3 direction = speedModifier * glm::normalize((glm::vec3(center.x, 0, center.z) - glm::vec3(eye.x, 0, eye.z)));
+	float speedModifier = sprinting ? 3.00f : 1.0f;
+	glm::vec3 direction = 0.01f * speedModifier * glm::normalize((glm::vec3(center.x, 0, center.z) - glm::vec3(eye.x, 0, eye.z)));
 	glm::vec4 newCenter;
 	glm::vec4 newEye;
 
 	// forward
 	if (holdingW) {
+		glm::vec3 translation = direction;
 		newEye = glm::translate(glm::mat4(1), direction) * glm::vec4(eye, 1);
-		eye = glm::vec3(newEye.x, newEye.y, newEye.z);
+		eye = checkInSkybox(newEye);
 		newCenter = glm::translate(glm::mat4(1), direction) * glm::vec4(center, 1);
 		center = glm::vec3(newCenter.x, newCenter.y, newCenter.z);
+		if (!freeCamera)
+			playerObject->translate(translation.x, translation.y, translation.z);
 		view = glm::lookAt(eye, center, up);
 	}
 
 	// backward
 	else if (holdingS) {
+		glm::vec3 translation = -direction;
 		newEye = glm::translate(glm::mat4(1), -direction) * glm::vec4(eye, 1);
-		eye = glm::vec3(newEye.x, newEye.y, newEye.z);
+		eye = checkInSkybox(newEye);
 		newCenter = glm::translate(glm::mat4(1), -direction) * glm::vec4(center, 1);
 		center = glm::vec3(newCenter.x, newCenter.y, newCenter.z);
+		if (!freeCamera)
+			playerObject->translate(translation.x, translation.y, translation.z);
 		view = glm::lookAt(eye, center, up);
 	}
 
 	// right
 	if (holdingA) {
+		glm::vec3 translation = glm::cross(-direction, up);
 		newEye = glm::translate(glm::mat4(1), glm::cross(-direction, up)) * glm::vec4(eye, 1);
-		eye = glm::vec3(newEye.x, newEye.y, newEye.z);
+		eye = checkInSkybox(newEye);
 		newCenter = glm::translate(glm::mat4(1), glm::cross(-direction, up)) * glm::vec4(center, 1);
 		center = glm::vec3(newCenter.x, newCenter.y, newCenter.z);
+		if (!freeCamera)
+			playerObject->translate(translation.x, translation.y, translation.z);
 		view = glm::lookAt(eye, center, up);
 	}
 
 	// left
 	else if (holdingD) {
+		glm::vec3 translation = glm::cross(direction, up);
 		newEye = glm::translate(glm::mat4(1), glm::cross(direction, up)) * glm::vec4(eye, 1);
-		eye = glm::vec3(newEye.x, newEye.y, newEye.z);
+		eye = checkInSkybox(newEye);
 		newCenter = glm::translate(glm::mat4(1), glm::cross(direction, up)) * glm::vec4(center, 1);
 		center = glm::vec3(newCenter.x, newCenter.y, newCenter.z);
+		if (!freeCamera)
+			playerObject->translate(translation.x, translation.y, translation.z);
 		view = glm::lookAt(eye, center, up);
 	}
 }

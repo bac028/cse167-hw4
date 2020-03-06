@@ -20,6 +20,8 @@
 // abstract node class
 class Node {
 public:
+	float minX, minY, minZ, maxX, maxY, maxZ;
+
 	virtual void draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelLoc) = 0;
 	virtual void update() = 0;
 };
@@ -28,8 +30,9 @@ public:
 
 class Transform : public Node {
 private:
-	glm::mat4 M; // transformation matrix
 	std::vector<Node*> children; // children pointers
+
+	float minX, minY, minZ, maxX, maxY, maxZ;
 
 	glm::vec3 rotationVector;
 	float maxA, minA;
@@ -39,6 +42,7 @@ private:
 	float currentX, currentY, currentZ, currentScale, currentAngle;
 
 public:
+	glm::mat4 M; // transformation matrix
 	Transform(glm::mat4 M);
 
 	void addChild(Node* child);
@@ -68,10 +72,10 @@ private:
 
 	GLuint vao, vbo[2], ebo;
 
-	//float currentX, currentY, currentZ, currentScale, currentAngle;
-
 public:
 	glm::mat4 currModel;
+
+	float minX, maxX, minY, maxY, minZ, maxZ;
 
 	Geometry();
 	~Geometry();
@@ -82,26 +86,14 @@ public:
 	void update();
 };
 
-class BezierCurve : public Geometry {
+class Robot : public Transform {
 private:
-	float *points;
-	std::vector<glm::vec3> curvePoints;
-	int size = 4 * 3 * 5;
-	int N = 150;
-
-	glm::mat4 control;
-
-	glm::mat4 B = glm::mat4(glm::vec4(-1.0, 3.0, -3.0, 1.0),
-		glm::vec4(3.0, -6.0, 3.0, 0),
-		glm::vec4(-3.0, 3.0, 0, 0),
-		glm::vec4(1, 0, 0, 0));
-	GLuint vao, vbo;
-
+	Transform* eye;
 public:
-	void init(float* points);
-	void draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelLoc);
-	glm::vec4 getPoint(float t);
-	void update() {};
+	Robot(glm::mat4 M);
+	~Robot();
+
+	glm::vec3 getEyePosition() { return glm::vec3((M * eye->getModel())[3].x, (M * eye->getModel())[3].y, (M * eye->getModel() )[3].z); };
 };
 
 #endif

@@ -9,6 +9,12 @@ Transform::Transform(glm::mat4 M) {
 
 	maxA = 0;
 	minA = 0;
+	minX = 0;
+	minY = 0;
+	minZ = 0;
+	maxX = 0;
+	maxY = 0;
+	maxZ = 0;
 	rotationVector = glm::vec3(0, 0, 0);
 	currentX = 0;
 	currentY = 0;
@@ -23,6 +29,12 @@ void Transform::setChildren(vector<Node*>* children) {
 
 void Transform::addChild(Node* child) {
 	children.push_back(child);
+	if (child->maxX > maxX) maxX = child->maxX;
+	if (child->maxY > maxY) maxY = child->maxY;
+	if (child->maxZ > maxZ) maxZ = child->maxZ;
+	if (child->minX < minX) minX = child->minX;
+	if (child->minY < minY) minY = child->minY;
+	if (child->minZ < minZ) minZ = child->minZ;
 }
 
 void Transform::removeChild() {
@@ -66,6 +78,51 @@ void Transform::scale(float s) {
 	M = glm::scale(M, glm::vec3(s, s, s));
 }
 
+Robot::Robot(glm::mat4 M) : Transform(M) {
+	
+	// initializes geometries for body parts
+	Geometry* bodyGeometry = new Geometry(), * headGeometry = new Geometry(), * eyeGeometry = new Geometry(), * limbGeometry = new Geometry(), * antennaGeometry = new Geometry();
+	bodyGeometry->init("body_s", 0);
+	headGeometry->init("bunny", 1);
+	eyeGeometry->init("eyeball_s", 0);
+	limbGeometry->init("limb_s", 0);
+	//antennaGeometry->init("antenna_s", 0);
+
+	// adds each body part
+	Transform* body = new Transform(glm::translate(glm::mat4(1), glm::vec3(0, 0, 0)));
+	body->addChild(bodyGeometry);
+	this->addChild(body);
+
+	Transform* head = new Transform(glm::translate(glm::mat4(1), glm::vec3(0, 1.75, 0)));
+	head->addChild(headGeometry);
+	this->addChild(head);
+
+	Transform* eye = new Transform(glm::translate(glm::mat4(1), glm::vec3(0, 0.75, 1.0)));
+	eye->addChild(eyeGeometry);
+	this->addChild(eye);
+	this->eye = eye;
+
+	Transform* rightArm = new Transform(glm::rotate(glm::translate(glm::mat4(1), glm::vec3(1.2, 0.25, 0)), glm::radians(33.0f), glm::vec3(0, 0, 1)));
+	rightArm->addChild(limbGeometry);
+	rightArm->addAnimation(glm::vec3(-1, 0, 0), 45.0f, -45.0f);
+	this->addChild(rightArm);
+
+	Transform* leftArm = new Transform(glm::rotate(glm::translate(glm::mat4(1), glm::vec3(-1.2, 0.25, 0)), glm::radians(-33.0f), glm::vec3(0, 0, 1)));
+	leftArm->addChild(limbGeometry);
+	leftArm->addAnimation(glm::vec3(1, 0, 0), 45.0f, -45.0f);
+	this->addChild(leftArm);
+
+	Transform* leftLeg = new Transform(glm::translate(glm::mat4(1), glm::vec3(-0.5, -1.2, 0)));
+	leftLeg->addChild(limbGeometry);
+	leftLeg->addAnimation(glm::vec3(-1, 0, 0), -45.0f, 45.0f);
+	this->addChild(leftLeg);
+
+	Transform* rightLeg = new Transform(glm::translate(glm::mat4(1), glm::vec3(0.5, -1.2, 0)));
+	rightLeg->addChild(limbGeometry);
+	rightLeg->addAnimation(glm::vec3(1, 0, 0), 45.0f, -45.0f);
+	this->addChild(rightLeg);
+}
+
 Geometry::Geometry() {}
 
 Geometry::~Geometry() {
@@ -105,6 +162,14 @@ void Geometry::init(string objFilename, int objFormat) {
 			if (type == ' ') {
 				fscanf(fp, "%f %f %f %f %f %f", &x, &y, &z, &r, &g, &b);
 				input_vertices.push_back(glm::vec3(x, y, z));
+
+				// gets max/min
+				if (x > maxX) maxX = x;
+				if (x < minX) minX = x;
+				if (y > maxY) maxY = y;
+				if (y < minY) minY = y;
+				if (z > maxZ) maxZ = z;
+				if (z < minZ) minZ = z;
 			}
 
 			// vector normal
@@ -146,7 +211,6 @@ void Geometry::init(string objFilename, int objFormat) {
 
 	std::cout << "input lengths: " << input_vertices.size() << ", " << input_normals.size() << endl;
 
-
 	fclose(fp);
 
 	if (objFormat == 0) {
@@ -167,6 +231,13 @@ void Geometry::init(string objFilename, int objFormat) {
 	float centerX = (float)((double)maxX + minX) / 2.0;
 	float centerY = (float)((double)maxY + minY) / 2.0;
 	float centerZ = (float)((double)maxZ + minZ) / 2.0;
+
+	this->minX = minX;
+	this->minY = minY;
+	this->minZ = minZ;
+	this->maxX = maxX;
+	this->maxY = maxY;
+	this->maxZ = maxZ;
 
 	float maxDist = max(max(centerX - minX, centerY - minY), centerZ - minZ);
 
@@ -226,68 +297,5 @@ void Geometry::draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelL
 
 void Geometry::update() {
 
-}
-
-void BezierCurve::init(float* points) {
-
-	this->points = points;
-
-	for (int i = 0; i < 5; i++) {
-		// first control points
-		glm::vec4 point1 = glm::vec4(points[12*i], points[12*i + 1], points[12*i + 2], 1);
-		glm::vec4 point2 = glm::vec4(points[12*i + 3], points[12*i + 4], points[12*i + 5], 1);
-		glm::vec4 point3 = glm::vec4(points[12*i + 6], points[12*i + 7], points[12*i + 8], 1);
-		glm::vec4 point4 = glm::vec4(points[12*i + 9], points[12*i + 10], points[12*i + 11], 1);
-
-		control = glm::mat4(point1, point2, point3, point4);
-
-		for (float t = 0.0f; t < 1.0f; t += 0.005f) {
-			glm::vec4 point = getPoint(t);
-			curvePoints.push_back(glm::vec3(point.x, point.y, point.z));
-			//std::cout << point.x << " " << point.y << " " << point.z << " " << point.w << std::endl;
-		}
-	}
-
-	// Generate a vertex array (VAO) and a vertex buffer objects (VBO).
-	glGenVertexArrays(1, &vao);
-	glGenBuffers(1, &vbo);
-
-	// Bind to the VAO.
-	glBindVertexArray(vao);
-
-	// Bind to the first VBO. We will use it to store the points.
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	
-	// Pass in the data.
-	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * curvePoints.size(), curvePoints.data(), GL_STATIC_DRAW);
-
-	// Enable vertex attribute 0. 
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
-
-	// Unbind from the VBO.
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-	// Unbind from the VAO.
-	glBindVertexArray(0);
-}
-
-void BezierCurve::draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelLoc) {
-
-	// Bind to the VAO.
-	glBindVertexArray(vao);
-
-	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(C));
-
-	// Draw points 
-	glDrawArrays(GL_LINE_STRIP, 0, 3 * curvePoints.size());
-
-	// Unbind from the VAO.
-	glBindVertexArray(0);
-}
-
-glm::vec4 BezierCurve::getPoint(float t) {
-	glm::vec4 T = glm::vec4(t*t*t, t*t, t, 1);
-	return control * B * T;
 }
 
