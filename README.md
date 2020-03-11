@@ -25,4 +25,4 @@ We will recreating a basic first person world simulator that incorporates basic 
 - Have an object designated for the sun that changes the time of the day
 
 ### Concept Image
-![Concept image](https://github.com/rachelbarrow/cse167-hw4/blob/master/0302.png)
+![Concept image](https://github.com/rachelbarrow/cse167-hw4/blob/master/media/0302.png)

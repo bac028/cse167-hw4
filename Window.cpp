@@ -4,34 +4,38 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+using namespace std;
+using namespace glm;
+
 namespace {
 	int width, height;
-	std::string windowTitle("Minecraft");
+	string windowTitle("MinecraftBlox");
 
-	Geometry* testObject;
 	Robot* playerObject;
 	Transform* objects;
+	//Terrain* terrain;
 
-	glm::vec3 playerCenter(0, 0, 0);
-	glm::vec3 eye(0, 1, 1.2);	 // Camera position.
-	glm::vec3 center(0, 0, 10);  // The point we are looking at.
-	glm::vec3 up(0, 1, 0);		 // The up direction of the camera.
+	vec3 playerCenter(0, 0, 0);
+	vec3 eye(0, 1, 1.2);		// Camera position.
+	vec3 center(0, 0, 10);		// The point we are looking at.
+	vec3 up(0, 1, 0);			// The up direction of the camera.
 
 	// movement flags
 	bool holdingW = false, holdingA = false, holdingS = false, holdingD = false, sprinting = false;
 
 	// for camera rotation
-	float yaw = -90.0f;
-	float pitch = 0.0f;
+	float objYaw = -90.0f;
+	float objPitch = 0.0f;
 
 	float fovy = 60;
-	float near = 1;
-	float far = 2000;
-	glm::mat4 view = glm::lookAt(eye, center, up);  // View matrix, defined by eye, center and up.
-	glm::mat4 projection;							// Projection matrix.
+	float near_a = 1;
+	float far_a = 2000;
+	mat4 view = lookAt(eye, center, up);  // View matrix, defined by eye, center and up.
+	mat4 projection;							// Projection matrix.
 
 	GLuint program;
 	GLuint skyboxProgram;
+	GLuint terrainProgram;
 
 	GLuint projectionLoc;	// Location of projection in shader.
 	GLuint viewLoc;			// Location of view in shader.
@@ -53,22 +57,34 @@ namespace {
 	GLuint viewPosLoc;
 
 	// lights
-	glm::vec3 lightDir;
-	glm::vec3 pointLightPos;
+	vec3 lightDir;
+	vec3 pointLightPos;
 
 	// mouse control
 	bool mousePressed_L = false;
 	bool noLastPoint = true;
 	bool mousePressed_R = false;
-	bool freeCamera = false;
-	bool thirdPerson = false;
-	glm::vec3 lastPoint;
 
-	float mode = 0.0f;
+	enum CameraType {
+		FIRST_PERSON,
+		THIRD_PERSON,
+		FREE_CAMERA
+	};
+	CameraType cameraType = FIRST_PERSON;
+
+	vec3 lastPoint;
+
+	enum ShaderMode {
+		NORMAL,
+		PHONG,
+		TOON
+	};
+	ShaderMode mode = TOON; // shading mode
+
 	bool cameraControl = true; // camera trackball mapping
 
 	// skybox files
-	std::vector<std::string> faces = {
+	vector<string> faces = {
 		"skybox/right.jpg",
 		"skybox/left.jpg",
 		"skybox/top.jpg",
@@ -133,11 +149,12 @@ bool Window::initializeProgram() {
 	// Create a shader program with a vertex shader and a fragment shader.
 	program = LoadShaders("shaders/shader.vert", "shaders/shader.frag");
 	skyboxProgram = LoadShaders("shaders/skybox_shader.vert", "shaders/skybox_shader.frag");
+	terrainProgram = LoadShaders("shaders/texture_shader.vert", "shaders/texture_shader.frag");
 
 	// Check the shader programs.
 	if (!program)
 	{
-		std::cerr << "Failed to initialize shader program" << std::endl;
+		cerr << "Failed to initialize shader program" << endl;
 		return false;
 	}
 
@@ -150,6 +167,16 @@ bool Window::initializeProgram() {
 	colorLoc = glGetUniformLocation(program, "normal");
 	modeLoc = glGetUniformLocation(program, "mode");
 	sphereColorLoc = glGetUniformLocation(program, "color");
+
+	ambientLoc = glGetUniformLocation(program, "materialAmbient");
+	diffuseLoc = glGetUniformLocation(program, "materialDiffuse");
+	specularLoc = glGetUniformLocation(program, "materialSpecular");
+	shininessLoc = glGetUniformLocation(program, "materialShininess");
+
+	pointLightPosLoc = glGetUniformLocation(program, "pointLightPosition");
+	pointLightColorLoc = glGetUniformLocation(program, "pointLightColor");
+	directionLightDirLoc = glGetUniformLocation(program, "dirLightDirection");
+	directionLightColorLoc = glGetUniformLocation(program, "dirLightColor");
 
 	viewPosLoc = glGetUniformLocation(program, "viewPos");
 
@@ -178,22 +205,19 @@ bool Window::initializeProgram() {
 
 bool Window::initializeObjects() {
 
-	testObject = new Geometry();
-	testObject->init("bunny", 1);
+	playerObject = new Robot(translate(mat4(1), playerCenter));
 
-	playerObject = new Robot(glm::translate(glm::mat4(1), playerCenter));
-
-	objects = new Transform(glm::mat4(1));
+	objects = new Transform(mat4(1));
 	objects->addChild(playerObject);
-	//objects->addChild(testObject);
+	//terrain = new Terrain();
 
 	return true;
 }
 
 void Window::cleanUp() {
 
-	delete(testObject);
 	delete(objects);
+	//delete(terrain);
 
 	// Delete the shader programs.
 	glDeleteProgram(program);
@@ -204,7 +228,7 @@ GLFWwindow* Window::createWindow(int width, int height) {
 	// Initialize GLFW.
 	if (!glfwInit())
 	{
-		std::cerr << "Failed to initialize GLFW" << std::endl;
+		cerr << "Failed to initialize GLFW" << endl;
 		return NULL;
 	}
 
@@ -227,7 +251,7 @@ GLFWwindow* Window::createWindow(int width, int height) {
 	// Check if the window could not be created.
 	if (!window)
 	{
-		std::cerr << "Failed to open GLFW window." << std::endl;
+		cerr << "Failed to open GLFW window." << endl;
 		glfwTerminate();
 		return NULL;
 	}
@@ -241,7 +265,7 @@ GLFWwindow* Window::createWindow(int width, int height) {
 	// Initialize GLEW.
 	if (glewInit())
 	{
-		std::cerr << "Failed to initialize GLEW" << std::endl;
+		cerr << "Failed to initialize GLEW" << endl;
 		return NULL;
 	}
 #endif
@@ -269,8 +293,8 @@ void Window::resizeCallback(GLFWwindow* window, int w, int h) {
 	glViewport(0, 0, width, height);
 
 	// Set the projection matrix.
-	projection = glm::perspective(glm::radians(fovy),
-		(float)width / (float)height, near, far);
+	projection = perspective(radians(fovy),
+		(float)width / (float)height, near_a, far_a);
 }
 
 void Window::idleCallback() {
@@ -286,8 +310,8 @@ void Window::displayCallback(GLFWwindow* window) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glDepthFunc(GL_LEQUAL);
-	glUniformMatrix4fv(skybox_projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
-	glUniformMatrix4fv(skybox_viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+	glUniformMatrix4fv(skybox_projectionLoc, 1, GL_FALSE, value_ptr(projection));
+	glUniformMatrix4fv(skybox_viewLoc, 1, GL_FALSE, value_ptr(view));
 
 	// skybox cube
 	glBindVertexArray(skyboxVAO);
@@ -309,15 +333,38 @@ void Window::displayCallback(GLFWwindow* window) {
 	glBindVertexArray(0);
 	glDepthFunc(GL_LESS); // set depth function back to default
 
+
+	// ----------- TERRAIN -------------
+	//glUseProgram(terrainProgram);
+	
+	//unsigned int terrain_projectionLoc = glGetUniformLocation(terrainProgram, "projection");
+	//unsigned int terrain_viewLoc = glGetUniformLocation(terrainProgram, "view");
+	//unsigned int terrain_textureLoc = glGetUniformLocation(terrainProgram, "skybox");
+	
+	//glUniformMatrix4fv(terrain_projectionLoc, 1, GL_FALSE, value_ptr(projection));
+	//glUniformMatrix4fv(terrain_viewLoc, 1, GL_FALSE, value_ptr(view));
+
+	//terrain->draw(terrainProgram);
+
 	// ----------- OBJECTS -------------
 	glUseProgram(program);
 
-	//glm::mat4 model = currentObj->getModel();
-	glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
-	glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-	glUniform1f(modeLoc, 0);
+	//mat4 model = currentObj->getModel();
+	glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, value_ptr(projection));
+	glUniformMatrix4fv(viewLoc, 1, GL_FALSE, value_ptr(view));
+	glUniform1f(modeLoc, (float) mode);
 
-	objects->draw(glm::mat4(1), program, modelLoc);
+	// direction lighting
+	glUniform3fv(directionLightDirLoc, 1, glm::value_ptr(glm::vec3(0.0f, -1.0f, -15.0f)));
+	glUniform3fv(directionLightColorLoc, 1, glm::value_ptr(glm::vec3(1.0f, 1.0f, 1.0f)));
+
+	glUniform3fv(viewPosLoc, 1, glm::value_ptr(eye));
+
+	glUniform1f(dirEnabledLoc, 1);
+	glUniform1f(pointEnabledLoc, 0);
+	glUniform3fv(colorLoc, 1, glm::value_ptr(glm::vec3(1, 1, 1)));
+
+	objects->draw(mat4(1), program, modelLoc, ambientLoc, diffuseLoc, specularLoc, shininessLoc);
 
 	// Gets events, including input such as keyboard and mouse or window resizing.
 	glfwPollEvents();
@@ -349,7 +396,7 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
 			break;
 	}
 
-	playerObject->setMoving(holdingW || holdingA || holdingS || holdingD);
+	playerObject->setMoving((holdingW || holdingA || holdingS || holdingD) && cameraType != FREE_CAMERA);
 	
 	// Check for a key press.
 	if (action == GLFW_PRESS)
@@ -372,13 +419,15 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
 					break;
 
 				case GLFW_KEY_F:
-					freeCamera = !freeCamera;
-					thirdPerson = false;
+					cameraType = FREE_CAMERA;
+					break;
+
+				case GLFW_KEY_1:
+					cameraType = FIRST_PERSON;
 					break;
 
 				case GLFW_KEY_3:
-					freeCamera = false;
-					thirdPerson = !thirdPerson;
+					cameraType = THIRD_PERSON;
 					break;
 
 				case GLFW_KEY_ESCAPE:
@@ -392,15 +441,15 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
 	}
 }
 
-glm::vec3 Window::trackballMapping(double x, double y) {
-	glm::vec3 v;
-	float d;
+vec3 Window::trackballMapping(double x, double y) {
+	vec3 v;
+	double d;
 
 	v.x = (2 * x - width) / width;
 	v.y = (height - 2 * y) / height;
 	v.z = 0;
 
-	d = glm::length(v);
+	d = length(v);
 	d = d < 1.0 ? d : 1.0;
 	v.z = sqrtf(1.001 - d * d);
 
@@ -411,78 +460,78 @@ glm::vec3 Window::trackballMapping(double x, double y) {
 void Window::cursor_position_callback(GLFWwindow* window, double xpos, double ypos) { 
 
 	// for rotation 
-	glm::vec3 currPoint = trackballMapping(xpos, ypos);
+	vec3 currPoint = trackballMapping(xpos, ypos);
 	if (noLastPoint) {
 		lastPoint = currPoint;
 		noLastPoint = false;
 		return;
 	}
 
-	glm::vec3 pointDirection = currPoint - lastPoint;
-	float velocity = glm::length(glm::vec3(pointDirection.x, 0, 0));
+	vec3 pointDirection = currPoint - lastPoint;
+	float velocity = length(vec3(pointDirection.x, 0, 0));
 	if (velocity > 0.0001) {
-		glm::vec3 rotAxis = glm::cross(lastPoint, currPoint);
+		vec3 rotAxis = cross(lastPoint, currPoint);
 		float rot_angle = velocity * 100.0f;
 			
 		if (!cameraControl && mousePressed_L) {
-			glm::mat4 prevModel = objects->getModel();
-			glm::mat4 newModel = glm::rotate(glm::mat4(1), glm::radians(rot_angle), glm::vec3(rotAxis.x, rotAxis.y, rotAxis.z));
+			mat4 prevModel = objects->getModel();
+			mat4 newModel = rotate(mat4(1), radians(rot_angle), vec3(rotAxis.x, rotAxis.y, rotAxis.z));
 			newModel = prevModel * newModel;
 			objects->setModel(newModel);
 		}
 
 		if (cameraControl) {
-			yaw += pointDirection.x * 100;
-			pitch += pointDirection.y * 100;
+			objYaw += pointDirection.x * 100;
+			objPitch += pointDirection.y * 100;
 
-			if (pitch > 89.9) pitch = 89.9;
-			if (pitch < -89.9) pitch = -89.9;
+			if (objPitch > 89.9) objPitch = 89.9;
+			if (objPitch < -89.9) objPitch = -89.9;
 
-			if (!freeCamera) {
-				pitch = pitch > 44.9 ? 44.9 : pitch;
-				pitch = pitch < -44.9 ? -44.9 : pitch;
+			if (cameraType == FIRST_PERSON || cameraType == THIRD_PERSON) {
+				objPitch = objPitch > 44.9 ? 44.9 : objPitch;
+				objPitch = objPitch < -44.9 ? -44.9 : objPitch;
 			}
 
-			glm::vec3 directionCamera;
-			directionCamera.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-			directionCamera.y = sin(glm::radians(pitch));
-			directionCamera.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-			directionCamera = glm::normalize(directionCamera);
+			vec3 directionCamera;
+			directionCamera.x = cos(radians(objYaw)) * cos(radians(objPitch));
+			directionCamera.y = sin(radians(objPitch));
+			directionCamera.z = sin(radians(objYaw)) * cos(radians(objPitch));
+			directionCamera = normalize(directionCamera);
 
-			up = glm::normalize(glm::cross(glm::normalize(glm::cross(directionCamera, glm::vec3(0, 1, 0))), directionCamera));
+			up = normalize(cross(normalize(cross(directionCamera, vec3(0, 1, 0))), directionCamera));
 
-			if (freeCamera) center = eye + directionCamera;
+			if (cameraType == FREE_CAMERA) center = eye + directionCamera;
 			
-			if (!freeCamera) {
-				glm::mat4 prevModel = playerObject->getModel();
-				glm::mat4 newModel = glm::rotate(glm::mat4(1), glm::radians(-rot_angle), glm::vec3(0, rotAxis.y, 0));
+			if (cameraType == FIRST_PERSON || cameraType == THIRD_PERSON) {
+				mat4 prevModel = playerObject->getModel();
+				mat4 newModel = rotate(mat4(1), radians(-rot_angle), vec3(0, rotAxis.y, 0));
 				newModel = prevModel * newModel;
 				playerObject->setModel(newModel);
 				eye = playerObject->getEyePosition();
-				center = eye + glm::vec3(-directionCamera.x, directionCamera.y, -directionCamera.z);
-				if (thirdPerson) {
-					glm::vec4 newEye = glm::translate(glm::mat4(1.0f), 15.0f * glm::vec3(directionCamera.x, -directionCamera.y, directionCamera.z)) * glm::vec4(eye, 1.0f);
-					eye = glm::vec3(newEye.x, newEye.y, newEye.z);
+				center = eye + vec3(-directionCamera.x, directionCamera.y, -directionCamera.z);
+				if (cameraType == THIRD_PERSON) {
+					vec4 newEye = translate(mat4(1.0f), 15.0f * vec3(directionCamera.x, -directionCamera.y, directionCamera.z)) * vec4(eye, 1.0f);
+					eye = vec3(newEye.x, newEye.y, newEye.z);
 				}
 			}
 			
-			view = glm::lookAt(eye, center, up);
+			view = lookAt(eye, center, up);
 		}
 	}
 	glfwSetCursorPos(window, height/2, width/2);
 	noLastPoint = 1;
-	lastPoint = glm::vec3(0, 0, 0); //currPoint;
+	lastPoint = vec3(0, 0, 0); //currPoint;
 
 	// for translation in xy plane
 	if (mousePressed_R) {
-		glm::vec3 currPoint = glm::vec3(xpos / 15, -1 * ypos / 15, 0);
+		vec3 currPoint = vec3(xpos / 15, -1 * ypos / 15, 0);
 		if (noLastPoint) {
 			lastPoint = currPoint;
 			noLastPoint = false;
 			return;
 		}
 
-		glm::vec3 difference = currPoint - lastPoint;
+		vec3 difference = currPoint - lastPoint;
 
 		objects->translate(difference.x, difference.y, 0);
 
@@ -508,7 +557,7 @@ void Window::scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 
 }
 
-unsigned int Window::loadCubemap(std::vector<std::string> faces) {
+unsigned int Window::loadCubemap(vector<string> faces) {
 	unsigned int textureID;
 	glGenTextures(1, &textureID);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
@@ -526,7 +575,7 @@ unsigned int Window::loadCubemap(std::vector<std::string> faces) {
 		}
 		else
 		{
-			std::cout << "Cubemap tex failed to load at path: " << faces[i] << std::endl;
+			cout << "Cubemap tex failed to load at path: " << faces[i] << endl;
 			stbi_image_free(data);
 		}
 	}
@@ -539,8 +588,8 @@ unsigned int Window::loadCubemap(std::vector<std::string> faces) {
 	return textureID;
 }
 
-glm::vec3 Window::checkInSkybox(glm::vec4 point) {
-	if (freeCamera) {
+vec3 Window::checkInSkybox(vec4 point) {
+	if (cameraType == FREE_CAMERA) {
 		if (point.x > 95 || point.x < -95) {
 			point.x = eye.x;
 		}
@@ -552,68 +601,70 @@ glm::vec3 Window::checkInSkybox(glm::vec4 point) {
 		}
 	} 
 
-	return glm::vec3(point.x, point.y, point.z);
+	return vec3(point.x, point.y, point.z);
 }
 
-bool checkCollision(glm::vec3 objOne, glm::vec3 objTwo){
+bool checkCollision(vec3 objOne, vec3 objTwo){
 	if(playerObject->maxX >= 100 && playerObject->minX <= -100 &&
 	playerObject->maxY >= 100 && playerObject->minY <= -100 &&
 	playerObject->maxZ >= 100 && playerObject->minZ <= -100 ){
 		//currentPosition = previews
 	}
+	return false;
 }
+
 void Window::handleMovement() {
 
 	float speedModifier = sprinting ? 3.00f : 1.0f;
-	glm::vec3 direction = 0.01f * speedModifier * glm::normalize((glm::vec3(center.x, 0, center.z) - glm::vec3(eye.x, 0, eye.z)));
-	glm::vec4 newCenter;
-	glm::vec4 newEye;
+	vec3 direction = 0.01f * speedModifier * normalize((vec3(center.x, 0, center.z) - vec3(eye.x, 0, eye.z)));
+	vec4 newCenter;
+	vec4 newEye;
 
 	// forward
 	if (holdingW) {
-		glm::vec3 translation = direction;
-		newEye = glm::translate(glm::mat4(1), direction) * glm::vec4(eye, 1);
+		vec3 translation = direction;
+		newEye = translate(mat4(1), direction) * vec4(eye, 1);
 		eye = checkInSkybox(newEye);
-		newCenter = glm::translate(glm::mat4(1), direction) * glm::vec4(center, 1);
-		center = glm::vec3(newCenter.x, newCenter.y, newCenter.z);
-		if (!freeCamera)
+		newCenter = translate(mat4(1), direction) * vec4(center, 1);
+		center = vec3(newCenter.x, newCenter.y, newCenter.z);
+		if (cameraType != FREE_CAMERA)
 			playerObject->translate(translation.x, translation.y, translation.z);
-		view = glm::lookAt(eye, center, up);
+		view = lookAt(eye, center, up);
 	}
 
 	// backward
 	else if (holdingS) {
-		glm::vec3 translation = -direction;
-		newEye = glm::translate(glm::mat4(1), -direction) * glm::vec4(eye, 1);
+		vec3 translation = -direction;
+		newEye = translate(mat4(1), -direction) * vec4(eye, 1);
 		eye = checkInSkybox(newEye);
-		newCenter = glm::translate(glm::mat4(1), -direction) * glm::vec4(center, 1);
-		center = glm::vec3(newCenter.x, newCenter.y, newCenter.z);
-		if (!freeCamera)
+		newCenter = translate(mat4(1), -direction) * vec4(center, 1);
+		center = vec3(newCenter.x, newCenter.y, newCenter.z);
+		if (cameraType != FREE_CAMERA)
 			playerObject->translate(translation.x, translation.y, translation.z);
-		view = glm::lookAt(eye, center, up);
+		view = lookAt(eye, center, up);
 	}
 
 	// right
 	if (holdingA) {
-		glm::vec3 translation = glm::cross(-direction, up);
-		newEye = glm::translate(glm::mat4(1), glm::cross(-direction, up)) * glm::vec4(eye, 1);
+		vec3 translation = cross(-direction, up);
+		newEye = translate(mat4(1), cross(-direction, up)) * vec4(eye, 1);
 		eye = checkInSkybox(newEye);
-		newCenter = glm::translate(glm::mat4(1), glm::cross(-direction, up)) * glm::vec4(center, 1);
-		center = glm::vec3(newCenter.x, newCenter.y, newCenter.z);
-		if (!freeCamera)
+		newCenter = translate(mat4(1), cross(-direction, up)) * vec4(center, 1);
+		center = vec3(newCenter.x, newCenter.y, newCenter.z);
+		if (cameraType != FREE_CAMERA)
 			playerObject->translate(translation.x, translation.y, translation.z);
-		view = glm::lookAt(eye, center, up);
+		view = lookAt(eye, center, up);
 	}
 
 	// left
 	else if (holdingD) {
-		glm::vec3 translation = glm::cross(direction, up);
-		newEye = glm::translate(glm::mat4(1), glm::cross(direction, up)) * glm::vec4(eye, 1);
+		vec3 translation = cross(direction, up);
+		newEye = translate(mat4(1), cross(direction, up)) * vec4(eye, 1);
 		eye = checkInSkybox(newEye);
-		newCenter = glm::translate(glm::mat4(1), glm::cross(direction, up)) * glm::vec4(center, 1);
-		center = glm::vec3(newCenter.x, newCenter.y, newCenter.z);
-		if (!freeCamera)
+		newCenter = translate(mat4(1), cross(direction, up)) * vec4(center, 1);
+		center = vec3(newCenter.x, newCenter.y, newCenter.z);
+		if (cameraType != FREE_CAMERA)
 			playerObject->translate(translation.x, translation.y, translation.z);
-		view = glm::lookAt(eye, center, up);
+		view = lookAt(eye, center, up);
 	}
 }

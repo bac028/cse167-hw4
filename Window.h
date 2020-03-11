@@ -20,7 +20,8 @@
 #include "Object.h"
 #include "PointCloud.h"
 #include "shader.h"
-#include "SceneGraph.h"
+#include "Terrain.h"
+#include "SceneGraph/SceneGraph.h"
 
 class Window
 {
