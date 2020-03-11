@@ -17,12 +17,19 @@
 #include <string>
 #include <iostream>
 
+struct ObjMaterial {
+	glm::vec3 ambient;
+	glm::vec3 diffuse;
+	glm::vec3 specular;
+	float shininess;
+};
+
 // abstract node class
 class Node {
 public:
 	float minX, minY, minZ, maxX, maxY, maxZ;
 
-	virtual void draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelLoc) = 0;
+	virtual void draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelLoc, unsigned int ambientLoc, unsigned int diffuseLoc, unsigned int specularLoc, unsigned int shininessLoc) = 0;
 	virtual void update() = 0;
 	virtual void setMoving(bool moving) = 0;
 };
@@ -30,7 +37,7 @@ public:
 // concrete classes: Transform, Geometry, Group
 
 class Transform : public Node {
-private:
+protected:
 	std::vector<Node*> children; // children pointers
 
 	float animationSpeed = 0.2f;
@@ -64,16 +71,19 @@ public:
 	void setMoving(bool moving);
 
 	// overwrite node methods
-	void draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelLoc);
+	void draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelLoc, unsigned int ambientLoc, unsigned int diffuseLoc, unsigned int specularLoc, unsigned int shininessLoc);
 	void update();
 };
 
 class Geometry : public Node {
-private:
+protected:
 	glm::mat4 initModel;
 	std::vector<glm::vec3> vertices;
 	std::vector<glm::vec3> normals;
+	std::vector<glm::vec3> textures;
 	std::vector<unsigned int> faces;
+
+	ObjMaterial material;
 
 	GLuint vao, vbo[2], ebo;
 
@@ -84,16 +94,16 @@ public:
 
 	Geometry();
 	~Geometry();
-	void init(std::string objFilename, int objFormat);
+	void init(std::string objFilename, int objFormat, ObjMaterial material);
 
 	// overwrite node methods
-	void draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelLoc);
+	void draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelLoc, unsigned int ambientLoc, unsigned int diffuseLoc, unsigned int specularLoc, unsigned int shininessLoc);
 	void update() {};
 	void setMoving(bool moving) {};
 };
 
 class Robot : public Transform {
-private:
+protected:
 	Transform* eye;
 public:
 	Robot(glm::mat4 M);

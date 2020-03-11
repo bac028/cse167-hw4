@@ -40,6 +40,7 @@ public:
 
 	static glm::vec3 trackballMapping(double x, double y);
 	static unsigned int loadCubemap(std::vector<std::string> faces);
+	static glm::vec3 checkInSkybox(glm::vec4 point);
 	static void handleMovement();
 };
 
