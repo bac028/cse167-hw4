@@ -18,10 +18,13 @@ struct DirectionalLight {
     vec3 color;
 };
 
-
 in vec4 vertexColor;
 in vec3 Normal;
 in vec3 FragPos;
+
+//Tone shading
+in vec3 world_pos;
+in vec3 world_normal;
 
 uniform vec3 materialAmbient;
 uniform vec3 materialDiffuse;
@@ -34,7 +37,6 @@ uniform vec3 pointLightPosition;
 uniform vec3 dirLightColor;
 uniform vec3 dirLightDirection;
 
-uniform vec3 color;
 uniform float mode;
 uniform float dirEnabled;
 uniform float pointEnabled;
@@ -100,19 +102,48 @@ void main()
         DirectionalLight dirLight = {dirLightDirection, dirLightColor};
         PointLight pointLight = {pointLightPosition, pointLightColor};
 
-        vec3 result = vec3(0,0,0);
+        vec3 result = vec3(0, 0, 0);
 
         // adds directional light
-        if (dirEnabled == 1.0f) result += calcDirLight(dirLight, material, norm, viewDir);
+        result += calcDirLight(dirLight, material, norm, viewDir);
 
         // adds point light
-        if (pointEnabled == 1.0f) result += calcPointLight(pointLight, material, norm, FragPos, viewDir);
+        //result += calcPointLight(pointLight, material, norm, FragPos, viewDir);
 
         fragColor = vec4(result, 1.0f);
     }
 
     // show point light
     else if (mode == 2.0) {
-        fragColor = vec4(color, 1.0);
+
+        vec3 ambientColor = materialAmbient;
+ 
+        const int levels = 3;
+        const float scaleFactor = 1.0 / levels;
+        vec3 diffuseColor = materialDiffuse;
+        
+        vec3 L = normalize ((vec3(10.0f, 10.0f, 10.0f)) - world_pos);
+        vec3 V = normalize (viewPos - FragPos);
+ 
+        float diffuse = max(0, dot(L, world_normal));
+        diffuseColor = diffuseColor * floor(diffuse * levels) * scaleFactor;
+ 
+        vec3 H = normalize(L + V);
+ 
+        float specular = 0.0;
+ 
+        if (dot(L, world_normal) > 0.0) {
+            specular = pow (max (0, dot(H, world_normal)), materialShininess);
+        }
+ 
+        //limit specular
+        float specMask = (pow (dot (H, world_normal), materialShininess) > 0.3) ? 1 : 0;
+ 
+        float edgeDetection = (dot (V, world_normal) > 0.3) ? 1 : 0.25f;
+        
+        //vec3 color = edgeDetection * (ambientColor + diffuseColor + (specular * materialSpecular) * specMask);
+        vec3 color = edgeDetection * (ambientColor + diffuseColor + (specular * materialSpecular) * specMask);
+ 
+        fragColor = vec4(color, 1.0f);
     }
 }
