@@ -13,7 +13,8 @@ namespace {
 
 	Robot* playerObject;
 	Transform* objects;
-	//Terrain* terrain;
+	Terrain* terrain;
+	Cloud* cloud;
 
 	vec3 playerCenter(0, 0, 0);
 	vec3 eye(0, 1, 1.2);		// Camera position.
@@ -36,6 +37,7 @@ namespace {
 	GLuint program;
 	GLuint skyboxProgram;
 	GLuint terrainProgram;
+	GLuint cloudProgram;
 
 	GLuint projectionLoc;	// Location of projection in shader.
 	GLuint viewLoc;			// Location of view in shader.
@@ -83,73 +85,35 @@ namespace {
 
 	bool cameraControl = true; // camera trackball mapping
 
-	// skybox files
-	vector<string> faces = {
-		"skybox/right.jpg",
-		"skybox/left.jpg",
-		"skybox/top.jpg",
-		"skybox/bottom.jpg",
-		"skybox/front.jpg",
-		"skybox/back.jpg"
-	};
+	GLfloat SunLight_Ambient[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	GLfloat SunLight_Diffuse[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	GLfloat SunLight_Specular[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	GLfloat SunLight_Position[4] = { 10.0f, 10.0f, 0.0f, 0.0f };
 
-	float skyboxVertices[] = {
-		// positions          
-			-100.0f,  100.0f, -100.0f,
-			-100.0f, -100.0f, -100.0f,
-			100.0f, -100.0f, -100.0f,
-			100.0f, -100.0f, -100.0f,
-			100.0f,  100.0f, -100.0f,
-			-100.0f,  100.0f, -100.0f,
+	//// skybox files
+	//vector<string> faces = {
+	//	"skybox/right.jpg",
+	//	"skybox/left.jpg",
+	//	"skybox/top.jpg",
+	//	"skybox/bottom.jpg",
+	//	"skybox/front.jpg",
+	//	"skybox/back.jpg"
+	//};
 
-			-100.0f, -100.0f,  100.0f,
-			-100.0f, -100.0f, -100.0f,
-			-100.0f,  100.0f, -100.0f,
-			-100.0f,  100.0f, -100.0f,
-			-100.0f,  100.0f,  100.0f,
-			-100.0f, -100.0f,  100.0f,
+	//unsigned int cubemapTexture;
 
-			100.0f, -100.0f, -100.0f,
-			100.0f, -100.0f,  100.0f,
-			100.0f,  100.0f,  100.0f,
-			100.0f,  100.0f,  100.0f,
-			100.0f,  100.0f, -100.0f,
-			100.0f, -100.0f, -100.0f,
-
-			-100.0f, -100.0f,  100.0f,
-			-100.0f,  100.0f,  100.0f,
-			100.0f,  100.0f,  100.0f,
-			100.0f,  100.0f,  100.0f,
-			100.0f, -100.0f,  100.0f,
-			-100.0f, -100.0f,  100.0f,
-
-			-100.0f,  100.0f, -100.0f,
-			100.0f,  100.0f, -100.0f,
-			100.0f,  100.0f,  100.0f,
-			100.0f,  100.0f,  100.0f,
-			-100.0f,  100.0f,  100.0f,
-			-100.0f,  100.0f, -100.0f,
-			-100.0f, -100.0f, -100.0f,
-			-100.0f, -100.0f,  100.0f,
-			100.0f, -100.0f, -100.0f,
-			100.0f, -100.0f, -100.0f,
-			-100.0f, -100.0f,  100.0f,
-			100.0f, -100.0f,  100.0f
-	};
-
-	unsigned int cubemapTexture;
-
-	GLuint skybox_projectionLoc;	// Location of projection in shader.
-	GLuint skybox_viewLoc;			// Location of view in shader.
-	GLuint skybox_skyboxLoc;		// Location of view in shader.
-	unsigned int skyboxVAO, skyboxVBO;
+	//GLuint skybox_projectionLoc;	// Location of projection in shader.
+	//GLuint skybox_viewLoc;			// Location of view in shader.
+	//GLuint skybox_skyboxLoc;		// Location of view in shader.
+	//unsigned int skyboxVAO, skyboxVBO;
 };
 
 bool Window::initializeProgram() {
 	// Create a shader program with a vertex shader and a fragment shader.
 	program = LoadShaders("shaders/shader.vert", "shaders/shader.frag");
-	skyboxProgram = LoadShaders("shaders/skybox_shader.vert", "shaders/skybox_shader.frag");
+	//skyboxProgram = LoadShaders("shaders/skybox_shader.vert", "shaders/skybox_shader.frag");
 	terrainProgram = LoadShaders("shaders/texture_shader.vert", "shaders/texture_shader.frag");
+	cloudProgram = LoadShaders("shaders/cloud_shader.vert", "shaders/cloud_shader.frag");
 
 	// Check the shader programs.
 	if (!program)
@@ -180,25 +144,26 @@ bool Window::initializeProgram() {
 
 	viewPosLoc = glGetUniformLocation(program, "viewPos");
 
-	// skybox VAO
-	glGenVertexArrays(1, &skyboxVAO);
-	glGenBuffers(1, &skyboxVBO);
-	glBindVertexArray(skyboxVAO);
-	glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+
+	//// skybox VAO
+	//glGenVertexArrays(1, &skyboxVAO);
+	//glGenBuffers(1, &skyboxVBO);
+	//glBindVertexArray(skyboxVAO);
+	//glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
+	//glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
+	//glEnableVertexAttribArray(0);
+	//glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 
 	// only see inside of box
-	glEnable(GL_CULL_FACE); 
-	glCullFace(GL_BACK);
+	/*glEnable(GL_CULL_FACE); 
+	glCullFace(GL_BACK);*/
 
 	// load skybox faces
-	cubemapTexture = loadCubemap(faces);
+	//cubemapTexture = loadCubemap(faces);
 
-	skybox_projectionLoc = glGetUniformLocation(skyboxProgram, "projection");
+	/*skybox_projectionLoc = glGetUniformLocation(skyboxProgram, "projection");
 	skybox_viewLoc = glGetUniformLocation(skyboxProgram, "view");
-	skybox_skyboxLoc = glGetUniformLocation(skyboxProgram, "skybox");
+	skybox_skyboxLoc = glGetUniformLocation(skyboxProgram, "skybox");*/
 
 	return true;
 }
@@ -209,6 +174,8 @@ bool Window::initializeObjects() {
 
 	objects = new Transform(mat4(1));
 	objects->addChild(playerObject);
+	cloud = new Cloud();
+	cloud->makeEntity(0, NULL, NULL, 80, 0, 0, 0, 0, 50);
 	//terrain = new Terrain();
 
 	return true;
@@ -217,11 +184,13 @@ bool Window::initializeObjects() {
 void Window::cleanUp() {
 
 	delete(objects);
+	delete(cloud);
 	//delete(terrain);
 
 	// Delete the shader programs.
 	glDeleteProgram(program);
 	glDeleteProgram(skyboxProgram);
+	glDeleteProgram(cloudProgram);
 }
 
 GLFWwindow* Window::createWindow(int width, int height) {
@@ -305,46 +274,12 @@ void Window::displayCallback(GLFWwindow* window) {
 
 	handleMovement();
 
-	// ------------ SKYBOX -------------
-	glUseProgram(skyboxProgram);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	glDepthFunc(GL_LEQUAL);
-	glUniformMatrix4fv(skybox_projectionLoc, 1, GL_FALSE, value_ptr(projection));
-	glUniformMatrix4fv(skybox_viewLoc, 1, GL_FALSE, value_ptr(view));
-
-	// skybox cube
-	glBindVertexArray(skyboxVAO);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-
-	// no padded bytes
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-	// bilinear interpolation
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-	// clamp to edge to hide skybox edges
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-	glDrawArrays(GL_TRIANGLES, 0, 36);
-	glBindVertexArray(0);
-	glDepthFunc(GL_LESS); // set depth function back to default
-
-
-	// ----------- TERRAIN -------------
-	//glUseProgram(terrainProgram);
-	
-	//unsigned int terrain_projectionLoc = glGetUniformLocation(terrainProgram, "projection");
-	//unsigned int terrain_viewLoc = glGetUniformLocation(terrainProgram, "view");
-	//unsigned int terrain_textureLoc = glGetUniformLocation(terrainProgram, "skybox");
-	
-	//glUniformMatrix4fv(terrain_projectionLoc, 1, GL_FALSE, value_ptr(projection));
-	//glUniformMatrix4fv(terrain_viewLoc, 1, GL_FALSE, value_ptr(view));
-
-	//terrain->draw(terrainProgram);
+	// ------------CLOUD----------------
+	glUseProgram(cloudProgram);
+    glUniformMatrix4fv(glGetUniformLocation(cloudProgram, "P"), 1, GL_FALSE, glm::value_ptr(projection));
+    glUniformMatrix4fv(glGetUniformLocation(cloudProgram, "V"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniform1f(glGetUniformLocation(cloudProgram, "time"), (float)glfwGetTime() * 0.2f - 0.0f);
+	cloud->draw();
 
 	// ----------- OBJECTS -------------
 	glUseProgram(program);
@@ -667,4 +602,44 @@ void Window::handleMovement() {
 			playerObject->translate(translation.x, translation.y, translation.z);
 		view = lookAt(eye, center, up);
 	}
+}
+
+void Window::createScene() {
+	GLuint i;
+	float height;
+	vec3 terrainsize, norm;
+
+	terrain->reset();
+	terrain->fault(250, 5.0f, 0.999f);
+	terrain->randomNoise(5.0f);
+	terrain->smooth(1, 1);
+
+
+	terrainsize = terrain->getGridSize();
+	height = terrain->getMedianHeight();
+
+	//Sea->Reset(height - 2.0f);
+}
+
+void Window::DrawScene(){
+	GLuint i;
+
+	//Setup Light
+	glLightfv(GL_LIGHT0, GL_AMBIENT, SunLight_Ambient);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, SunLight_Diffuse);
+	glLightfv(GL_LIGHT0, GL_SPECULAR, SunLight_Specular);
+	glLightfv(GL_LIGHT0, GL_POSITION, SunLight_Position);
+	glEnable(GL_LIGHT0);
+
+	// render terrain
+	glPushMatrix();
+	glRotatef(objYaw, 1, 0, 0);
+	glRotatef(objPitch, 0, 1, 0);
+	glTranslatef(0.0f - eye.x, 0.0f - eye.y, 0.0f - eye.z);
+	terrain->render();
+	glPopMatrix();
+
+	glEnable(GL_CULL_FACE);
+	glDisable(GL_BLEND);
+	glPopMatrix();
 }

@@ -1,0 +1,4 @@
+#ifndef TERRAIN_SHADING_H
+#define TERRAIN_SHADING_H
+
+#endif

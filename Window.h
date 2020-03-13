@@ -16,9 +16,11 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <time.h>
 
 #include "Object.h"
 #include "PointCloud.h"
+#include "Cloud.h"
 #include "shader.h"
 #include "Terrain.h"
 #include "SceneGraph/SceneGraph.h"
@@ -43,6 +45,11 @@ public:
 	static unsigned int loadCubemap(std::vector<std::string> faces);
 	static glm::vec3 checkInSkybox(glm::vec4 point);
 	static void handleMovement();
+
+	// generate procedurally generated objects
+	void createScene();
+
+	void DrawScene();
 };
 
 #endif
