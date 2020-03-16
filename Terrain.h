@@ -50,13 +50,10 @@ class Terrain
 protected:
 	enum VertexAttribute { POSITION, NORMAL, TEXCOORDINATE };
 
-	GLuint m_iWidth, m_iHeight;
+	
 	GLfloat m_fHsize, m_fVsize, m_fMedianHeight, m_fTileSize;
-	unsigned int texture;
-	unsigned int terrainVAO, terrainVBO, terrainEBO;
 
 	GLuint m_uiNumSubsets;
-	SubsetStr* m_pSubsets;
 
 	GLuint m_uiNumVertices;
 	VertexStr* m_pVertices;
@@ -64,13 +61,13 @@ protected:
 	GLenum m_hProgram;
 	TerrainShading m_Technique;
 
+public:
+	GLuint m_iWidth, m_iHeight;
+	SubsetStr* m_pSubsets;
 	GLuint m_hTex[4];
 
-public:
-	Terrain();
 	Terrain(GLuint width, GLuint height, GLfloat tilesize, GLuint htexturetiles, GLuint vtexturetiles);
 	~Terrain();
-	void draw(unsigned int shader);
 	void reset(float height = 0.0f);
 	void fault(GLuint iterations, float initdisplacement, float dampening);
 	void randomNoise(float magnitude);
@@ -88,5 +85,7 @@ public:
 	void ResizeSubset(GLuint numsubset, GLuint numtriangles);
 	void GenerateSubsetIndicesBuffer(GLuint numsubset);
 	void DrawSubset(GLuint numsubset) const;
+
+	VertexStr* getVertices() { return m_pVertices; }
 };
 #endif

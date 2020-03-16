@@ -193,3 +193,74 @@ void Geometry::draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelL
 	glBindVertexArray(0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0); // unbind from ebo
 }
+
+TerrainGeometry::TerrainGeometry(std::vector<glm::vec3> vertices, std::vector<glm::vec3> normals, std::vector<glm::vec3> textures, std::vector<unsigned int> faces) {
+
+	this->vertices = vertices;
+	this->normals = normals;
+	this->textures = textures;
+	this->faces = faces;
+
+	std::cout << "vertices: " << vertices.size() << ", normals: " << normals.size() << ", faces: " << faces.size() << std::endl;
+
+	// Set the model matrix to an identity matrix. 
+	initModel = glm::mat4(1);
+
+	// Generate a vertex array (VAO) and a vertex buffer objects (VBO).
+	glGenVertexArrays(1, &vao);
+	glGenBuffers(2, vbo);
+	glGenBuffers(1, &ebo);
+
+	glBindVertexArray(vao);
+
+	// FACES:
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * faces.size(), faces.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	// COLOR:
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * normals.size(), normals.data(), GL_STATIC_DRAW);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+}
+
+TerrainGeometry::~TerrainGeometry() {
+	// Delete the VAO, VBO, and EBO
+	glDeleteBuffers(2, vbo);
+	glDeleteBuffers(1, &ebo);
+	glDeleteVertexArrays(1, &vao);
+}
+
+void TerrainGeometry::draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelLoc, unsigned int ambientLoc, unsigned int diffuseLoc, unsigned int specularLoc, unsigned int shininessLoc) {
+
+	currModel = C * initModel;
+
+	// Bind to the VAO.
+	glBindVertexArray(vao);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo); // unbind from ebo
+
+	glUniform1f(glGetUniformLocation(shaderProgram, "mode"), 0);
+	/*glUniform1f(glGetUniformLocation(shaderProgram, "tex0"), glm::value_ptr(tex0));
+	glUniform1f(glGetUniformLocation(shaderProgram, "tex1"), glm::value_ptr(tex1));
+	glUniform1f(glGetUniformLocation(shaderProgram, "tex2"), glm::value_ptr(tex2));
+	glUniform1f(glGetUniformLocation(shaderProgram, "tex3"), glm::value_ptr(tex3));*/
+
+	//glUseProgram(shaderProgram);
+	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(currModel));
+
+	// draws triangles
+	glDrawElements(GL_TRIANGLES, faces.size(), GL_UNSIGNED_INT, 0);
+
+	// Unbind from the VAO.
+	glBindVertexArray(0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0); // unbind from ebo
+}

@@ -27,7 +27,8 @@ void main()
 
     // normal shading
     gl_Position = projection * view * model * vec4(position, 1.0);
-    vertexColor = vec4(0.5 * normalize(normal) + 0.5, 1);
+    //vertexColor = vec4(0.5 * normalize(normal) + 0.5, 1);
+    vertexColor = vec4(normal, 1);
 
     // toon shading
     world_pos = vec3(model * vec4(position, 1.0));

@@ -102,6 +102,19 @@ public:
 	void setMoving(bool moving) {};
 };
 
+class TerrainGeometry : public Geometry {
+protected:
+	std::vector<glm::vec3> vertices;
+	std::vector<glm::vec3> normals;
+	std::vector<glm::vec3> textures;
+	std::vector<unsigned int> faces;
+public:
+	TerrainGeometry(std::vector<glm::vec3> vertices, std::vector<glm::vec3> normals, std::vector<glm::vec3> textures, std::vector<unsigned int> faces);
+	void TerrainGeometry::draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelLoc, unsigned int ambientLoc, unsigned int diffuseLoc, unsigned int specularLoc, unsigned int shininessLoc);
+	~TerrainGeometry();
+	//addTextures(terrain->m_hTex);
+};
+
 class Robot : public Transform {
 protected:
 	Transform* eye;

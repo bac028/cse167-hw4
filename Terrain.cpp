@@ -4,9 +4,8 @@
 
 using namespace std;
 
-Terrain::Terrain(GLuint width, GLuint height, GLfloat tilesize, GLuint htexturetiles, GLuint vtexturetiles)
-{
-	printf("Terrain ctor begin --\n");
+Terrain::Terrain(GLuint width, GLuint height, GLfloat tilesize, GLuint htexturetiles, GLuint vtexturetiles){
+ 	printf("Terrain ctor begin --\n");
 	m_hProgram = glCreateProgramObjectARB();
 
 	//Define width and height
@@ -20,10 +19,14 @@ Terrain::Terrain(GLuint width, GLuint height, GLfloat tilesize, GLuint htexturet
 	m_fHsize = (float(m_iWidth - 1)) * m_fTileSize;
 	m_fVsize = (float(m_iHeight - 1)) * m_fTileSize;
 
+	printf("SetNumVertices\n");
 	SetNumVertices(m_iWidth * m_iHeight);
+	printf("SetNumSubsets\n");
 	SetNumSubsets(1);
+	printf("ResizeSubsets\n");
 	ResizeSubset(0, (2 * (m_iWidth - 1) * (m_iHeight - 1)));
 
+	printf("Generate Base Geometry\n");
 	//Generete base geometry
 	GLuint i, j;
 	for (i = 0;i < m_iHeight;i++)
@@ -44,10 +47,12 @@ Terrain::Terrain(GLuint width, GLuint height, GLfloat tilesize, GLuint htexturet
 		}
 	}
 
+	printf("GenerateVertexBuffer\n");
 	GenerateVertexBuffer();
 
 	m_fMedianHeight = 0.0f;
 
+	printf("Generate indices\n");
 	//Generate indices
 	GLuint state = 0;
 	GLuint ctr = 0;
@@ -112,6 +117,7 @@ Terrain::Terrain(GLuint width, GLuint height, GLfloat tilesize, GLuint htexturet
 	m_pSubsets[0].Material.Ambient[3] = 1.0f;
 	m_pSubsets[0].Material.Shininess[0] = 80.0f;
 
+	printf("Get textures\n");
 	m_hTex[0] = SOIL_load_OGL_texture("Textures\\Rock.dds", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS | SOIL_FLAG_POWER_OF_TWO | SOIL_FLAG_TEXTURE_REPEATS);
 	m_hTex[1] = SOIL_load_OGL_texture("Textures\\Sand.dds", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS | SOIL_FLAG_POWER_OF_TWO | SOIL_FLAG_TEXTURE_REPEATS);
 	m_hTex[2] = SOIL_load_OGL_texture("Textures\\Grass.dds", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS | SOIL_FLAG_POWER_OF_TWO | SOIL_FLAG_TEXTURE_REPEATS);
@@ -119,35 +125,11 @@ Terrain::Terrain(GLuint width, GLuint height, GLfloat tilesize, GLuint htexturet
 	printf("Terrain ctor end --\n");
 }
 
-Terrain::~Terrain()
-{
-	glDeleteBuffers(1, &terrainVBO);
-	glDeleteBuffers(1, &terrainEBO);
-	glDeleteVertexArrays(1, &terrainVAO);
+Terrain::~Terrain() {
 }
 
-void Terrain::draw(unsigned int shader)
-{
-
-	// skybox cube
-	glBindVertexArray(terrainVAO);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, texture);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, terrainEBO);
-
-	glDrawArrays(GL_TRIANGLES, 0, 36);
-	glBindVertexArray(0);
-	glDepthFunc(GL_LESS); // set depth function back to default
-	
-	glBindTexture(GL_TEXTURE_2D, 0); // unbind texture
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0); // unbind from ebo
-	glBindVertexArray(0);
-
-	printf("-- end Terrain::draw() ---");
-}
-
-void Terrain::reset(float height)
-{
+void Terrain::reset(float height) {
+	printf("terrain->reset() start\n");
 	GLuint i, j;
 	for (i = 0;i < m_iHeight;i++)
 	{
@@ -160,10 +142,10 @@ void Terrain::reset(float height)
 	}
 	NormalGen();
 	m_fMedianHeight = height;
+	printf("terrain->reset() end\n");
 }
 
-void Terrain::fault(GLuint iterations, float initdisplacement, float dampening)
-{
+void Terrain::fault(GLuint iterations, float initdisplacement, float dampening) {
 	GLuint it, i, j;
 	float disp = initdisplacement;
 	glm::vec3 p1, p2, fault;
@@ -202,8 +184,7 @@ void Terrain::fault(GLuint iterations, float initdisplacement, float dampening)
 	CalculateMedianHeight();
 }
 
-void Terrain::randomNoise(float magnitude)
-{
+void Terrain::randomNoise(float magnitude) {
 	GLuint i, j;
 	for (i = 0;i < m_iHeight;i++)
 	{
@@ -216,8 +197,7 @@ void Terrain::randomNoise(float magnitude)
 	CalculateMedianHeight();
 }
 
-void Terrain::smooth(GLuint iterations, GLuint centerweight)
-{
+void Terrain::smooth(GLuint iterations, GLuint centerweight) {
 	glm::vec3 vert, * temp;
 	bool res;
 	temp = new glm::vec3[m_uiNumVertices];
@@ -302,14 +282,12 @@ void Terrain::smooth(GLuint iterations, GLuint centerweight)
 	CalculateMedianHeight();
 }
 
-glm::vec3 Terrain::getGridSize() const
-{
+glm::vec3 Terrain::getGridSize() const {
 	glm::vec3 size(m_fHsize, 0.0f, m_fVsize);
 	return size;
 }
 
-void Terrain::render(void)
-{
+void Terrain::render(void) {
 
 	//printf("-- start Terrain::render() ---");
 	
@@ -325,8 +303,7 @@ void Terrain::render(void)
 }
 
 
-void Terrain::NormalGen()
-{
+void Terrain::NormalGen() {
 	GLuint i, j;
 	glm::vec3 VertexPos, Neighbor1Pos, Neighbor2Pos, TotalNorm, Norm, v1, v2;
 	bool r1, r2;
@@ -471,8 +448,7 @@ void Terrain::NormalGen()
 	GenerateVertexBuffer();
 }
 
-bool Terrain::GetVertexAttrib(VertexAttribute attr, GLuint column, GLuint row, glm::vec3& output) const
-{
+bool Terrain::GetVertexAttrib(VertexAttribute attr, GLuint column, GLuint row, glm::vec3& output) const {
 	bool succeded = false;
 	if (column < m_iWidth)
 	{
@@ -498,8 +474,7 @@ bool Terrain::GetVertexAttrib(VertexAttribute attr, GLuint column, GLuint row, g
 	return succeded;
 }
 
-void Terrain::GenerateVertexBuffer()
-{
+void Terrain::GenerateVertexBuffer() {
 	glDeleteBuffersARB(1, &m_hVBOVertexBuffer);
 	glGenBuffersARB(1, &m_hVBOVertexBuffer);
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_hVBOVertexBuffer);
@@ -507,8 +482,7 @@ void Terrain::GenerateVertexBuffer()
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 }
 
-void Terrain::CalculateMedianHeight()
-{
+void Terrain::CalculateMedianHeight() {
 	GLuint i;
 	m_fMedianHeight = 0.0f;
 	for (i = 0;i < m_uiNumVertices;i++)
@@ -518,33 +492,36 @@ void Terrain::CalculateMedianHeight()
 	m_fMedianHeight = m_fMedianHeight / float(m_uiNumVertices);
 }
 
-void Terrain::SetNumVertices(GLuint numvertices)
-{
-	if (m_pVertices != NULL)
-	{
-		delete[] m_pVertices;
-	}
+void Terrain::SetNumVertices(GLuint numvertices) {
+	//if (m_pVertices != NULL)
+	//{
+	//	delete[] m_pVertices;
+	//}
 	m_uiNumVertices = numvertices;
-	m_pVertices = new VertexStr[m_uiNumVertices];
+	m_pVertices = new VertexStr[numvertices];
 }
 
-void Terrain::SetNumSubsets(GLuint numsubsets)
-{
+void Terrain::SetNumSubsets(GLuint numsubsets) {
 	GLuint i;
-	if (m_pSubsets != NULL)
-	{
-		for (i = 0;i < m_uiNumSubsets;i++)
+	try {
+		/*if (m_pSubsets != NULL)
 		{
-			glDeleteBuffersARB(1, &m_pSubsets[i].hVBOIndexBuffer);
-		}
-		delete[] m_pSubsets;
+			for (i = 0; i < m_uiNumSubsets;i++)
+			{
+				glDeleteBuffersARB(1, &m_pSubsets[i].hVBOIndexBuffer);
+			}
+			delete[] m_pSubsets;
+		}*/
+
+		m_uiNumSubsets = numsubsets;
+		m_pSubsets = new SubsetStr[numsubsets];
 	}
-	m_uiNumSubsets = numsubsets;
-	m_pSubsets = new SubsetStr[m_uiNumSubsets];
+	catch (exception e) {
+		printf("Exception: setnumsubsets %s\n", e.what());
+	}
 }
 
-void Terrain::ResizeSubset(GLuint numsubset, GLuint numtriangles)
-{
+void Terrain::ResizeSubset(GLuint numsubset, GLuint numtriangles) {
 	if (numsubset < m_uiNumSubsets)
 	{
 		if (m_pSubsets[numsubset].pIndices != NULL)
@@ -557,8 +534,7 @@ void Terrain::ResizeSubset(GLuint numsubset, GLuint numtriangles)
 	}
 }
 
-void Terrain::GenerateSubsetIndicesBuffer(GLuint numsubset)
-{
+void Terrain::GenerateSubsetIndicesBuffer(GLuint numsubset) {
 	if (numsubset < m_uiNumSubsets)
 	{
 		glDeleteBuffersARB(1, &m_pSubsets[numsubset].hVBOIndexBuffer);
@@ -569,8 +545,7 @@ void Terrain::GenerateSubsetIndicesBuffer(GLuint numsubset)
 	}
 }
 
-void Terrain::DrawSubset(GLuint numsubset) const
-{
+void Terrain::DrawSubset(GLuint numsubset) const {
 	if (numsubset < m_uiNumSubsets)
 	{
 		//Set material properties

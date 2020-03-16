@@ -12,11 +12,12 @@ namespace {
 	Robot* playerObject;
 	Transform* objects;
 	Terrain* terrain;
+	TerrainGeometry* terrainGeometry;
 	Cloud* cloud;
 
-	vec3 playerCenter(0, 0, 0);
-	vec3 eye(0, 1, 1.2);		// Camera position.
-	vec3 center(0, 0, 10);		// The point we are looking at.
+	vec3 playerCenter(0, 0, 200);
+	vec3 eye(0, 1, 200);		// Camera position.
+	vec3 center(0, 0, 200);		// The point we are looking at.
 	vec3 up(0, 1, 0);			// The up direction of the camera.
 
 	// movement flags
@@ -150,6 +151,8 @@ bool Window::initializeObjects() {
 
 	createScene();
 
+	objects->addChild(terrainGeometry);
+
 	return true;
 }
 
@@ -245,19 +248,17 @@ void Window::idleCallback() {
 
 void Window::displayCallback(GLFWwindow* window) {
 
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
-	glEnable(GL_DEPTH_TEST);
+	//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	//glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
+	//glEnable(GL_DEPTH_TEST);
 	handleMovement();
 
 	// ------------CLOUD----------------
-	/*glUseProgram(cloudProgram);
+	glUseProgram(cloudProgram);
     glUniformMatrix4fv(glGetUniformLocation(cloudProgram, "P"), 1, GL_FALSE, glm::value_ptr(projection));
     glUniformMatrix4fv(glGetUniformLocation(cloudProgram, "V"), 1, GL_FALSE, glm::value_ptr(view));
     glUniform1f(glGetUniformLocation(cloudProgram, "time"), (float)glfwGetTime() * 0.2f - 0.0f);
-	cloud->draw();*/
-
-	DrawScene();
+	cloud->draw();
 
 	// ----------- OBJECTS -------------
 	glUseProgram(program);
@@ -278,7 +279,6 @@ void Window::displayCallback(GLFWwindow* window) {
 	glUniform3fv(colorLoc, 1, glm::value_ptr(glm::vec3(1, 1, 1)));
 
 	objects->draw(mat4(1), program, modelLoc, ambientLoc, diffuseLoc, specularLoc, shininessLoc);
-
 
 	glfwPollEvents();
 	glfwSwapBuffers(window);
@@ -381,13 +381,6 @@ void Window::cursor_position_callback(GLFWwindow* window, double xpos, double yp
 	if (velocity > 0.0001) {
 		vec3 rotAxis = cross(lastPoint, currPoint);
 		float rot_angle = velocity * 100.0f;
-			
-		if (!cameraControl && mousePressed_L) {
-			mat4 prevModel = objects->getModel();
-			mat4 newModel = rotate(mat4(1), radians(rot_angle), vec3(rotAxis.x, rotAxis.y, rotAxis.z));
-			newModel = prevModel * newModel;
-			objects->setModel(newModel);
-		}
 
 		if (cameraControl) {
 			objYaw += pointDirection.x * 100;
@@ -493,7 +486,7 @@ bool checkCollision(vec3 objOne, vec3 objTwo){
 
 void Window::handleMovement() {
 
-	float speedModifier = sprinting ? 3.00f : 1.0f;
+	float speedModifier = sprinting ? 10.00f : 1.0f;
 	vec3 direction = 0.01f * speedModifier * normalize((vec3(center.x, 0, center.z) - vec3(eye.x, 0, eye.z)));
 	vec4 newCenter;
 	vec4 newEye;
@@ -552,34 +545,61 @@ void Window::createScene() {
 	float height;
 	vec3 terrainsize, norm;
 
+	srand(20202);
+
 	terrain->reset();
 	terrain->fault(250, 5.0f, 0.999f);
 	terrain->randomNoise(5.0f);
-	//terrain->smooth(1, 1);
+	terrain->smooth(1, 1);
+
+	vector<vec3> positions;
+	vector<vec3> normals;
+	vector<vec3> textures;
+	vector<unsigned int> faces;
+
+	float maxX = -10000.0f, maxY = -10000.0f, maxZ = -10000.0f;
+	float minX = 10000.0f, minY = 10000.0f, minZ = 10000.0f;
+
+	VertexStr* vertices = terrain->getVertices();
+	for (int i = 0; i < terrain->m_iWidth; i++) {
+		for (int j = 0; j < terrain->m_iHeight; j++) {
+			VertexStr currVertex = vertices[j + i * terrain->m_iWidth];
+
+			// gets max/min
+			if (currVertex.position.x > maxX) maxX = currVertex.position.x;
+			if (currVertex.position.x < minX) minX = currVertex.position.x;
+			if (currVertex.position.y > maxY) maxY = currVertex.position.y;
+			if (currVertex.position.y < minY) minY = currVertex.position.y;
+			if (currVertex.position.z > maxZ) maxZ = currVertex.position.z;
+			if (currVertex.position.z < minZ) minZ = currVertex.position.z;
+
+			positions.push_back(currVertex.position);
+			normals.push_back(currVertex.normal);
+			textures.push_back(currVertex.texture);
+			//printf("\nVertex (%d,%d)\n", i, j);
+			//printf("position: [%f, %f, %f]\n", currVertex.position.x, currVertex.position.y, currVertex.position.z);
+			//printf("normal: [%f, %f, %f]\n", currVertex.normal.x, currVertex.normal.y, currVertex.normal.z);
+			//printf("texture: [%f, %f, %f]\n\n", currVertex.texture.x, currVertex.texture.y, currVertex.texture.z);
+		}
+	}
+
+	float centerX = (float)((double)maxX + minX) / 2.0;
+	float centerY = (float)((double)maxY + minY) / 2.0;
+	float centerZ = (float)((double)maxZ + minZ) / 2.0;
+
+	// center points
+	/*for (int i = 0; i < positions.size(); i++) {
+		positions.at(i) = glm::vec3(positions.at(i).x - centerX, positions.at(i).y - centerY, positions.at(i).z - centerZ);
+	}*/
+
+	SubsetStr* subsets = terrain->m_pSubsets;
+	for (int i = 0; i < subsets->NumTriangles; i++) {
+		faces.push_back(subsets->pIndices[i]);
+	}
+
+	terrainGeometry = new TerrainGeometry(positions, normals, textures, faces);
+	//terrainGeometry->addTextures(terrain->m_hTex);
 
 	terrainsize = terrain->getGridSize();
 	height = terrain->getMedianHeight();
-}
-
-void Window::DrawScene(){
-	GLuint i;
-
-	//Setup Light
-	glLightfv(GL_LIGHT0, GL_AMBIENT, SunLight_Ambient);
-	glLightfv(GL_LIGHT0, GL_DIFFUSE, SunLight_Diffuse);
-	glLightfv(GL_LIGHT0, GL_SPECULAR, SunLight_Specular);
-	glLightfv(GL_LIGHT0, GL_POSITION, SunLight_Position);
-	glEnable(GL_LIGHT0);
-
-	// render terrain
-	glPushMatrix();
-	glRotatef(0, 1, 0, 0);
-	glRotatef(0, 0, 1, 0);
-	glTranslatef(0.0f - eye.x, 0.0f - eye.y, 0.0f - eye.z);
-	terrain->render();
-	glPopMatrix();
-
-	//glEnable(GL_CULL_FACE);
-	//glDisable(GL_BLEND);
-	glPopMatrix();
 }
