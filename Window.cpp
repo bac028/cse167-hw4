@@ -1,8 +1,6 @@
 ﻿#include "Window.h"
 #include <tgmath.h>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
 
 using namespace std;
 using namespace glm;
@@ -29,14 +27,13 @@ namespace {
 	float objPitch = 0.0f;
 
 	float fovy = 60;
-	float near_a = 1;
+	float near_a = 0.5;
 	float far_a = 2000;
 	mat4 view = lookAt(eye, center, up);  // View matrix, defined by eye, center and up.
 	mat4 projection;							// Projection matrix.
 
 	GLuint program;
 	GLuint skyboxProgram;
-	GLuint terrainProgram;
 	GLuint cloudProgram;
 
 	GLuint projectionLoc;	// Location of projection in shader.
@@ -75,6 +72,7 @@ namespace {
 	CameraType cameraType = FIRST_PERSON;
 
 	vec3 lastPoint;
+	vec3 currPoint;
 
 	enum ShaderMode {
 		NORMAL,
@@ -100,19 +98,12 @@ namespace {
 	//	"skybox/back.jpg"
 	//};
 
-	//unsigned int cubemapTexture;
-
-	//GLuint skybox_projectionLoc;	// Location of projection in shader.
-	//GLuint skybox_viewLoc;			// Location of view in shader.
-	//GLuint skybox_skyboxLoc;		// Location of view in shader.
-	//unsigned int skyboxVAO, skyboxVBO;
 };
 
 bool Window::initializeProgram() {
 	// Create a shader program with a vertex shader and a fragment shader.
 	program = LoadShaders("shaders/shader.vert", "shaders/shader.frag");
 	//skyboxProgram = LoadShaders("shaders/skybox_shader.vert", "shaders/skybox_shader.frag");
-	terrainProgram = LoadShaders("shaders/texture_shader.vert", "shaders/texture_shader.frag");
 	cloudProgram = LoadShaders("shaders/cloud_shader.vert", "shaders/cloud_shader.frag");
 
 	// Check the shader programs.
@@ -144,27 +135,6 @@ bool Window::initializeProgram() {
 
 	viewPosLoc = glGetUniformLocation(program, "viewPos");
 
-
-	//// skybox VAO
-	//glGenVertexArrays(1, &skyboxVAO);
-	//glGenBuffers(1, &skyboxVBO);
-	//glBindVertexArray(skyboxVAO);
-	//glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
-	//glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
-	//glEnableVertexAttribArray(0);
-	//glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-
-	// only see inside of box
-	/*glEnable(GL_CULL_FACE); 
-	glCullFace(GL_BACK);*/
-
-	// load skybox faces
-	//cubemapTexture = loadCubemap(faces);
-
-	/*skybox_projectionLoc = glGetUniformLocation(skyboxProgram, "projection");
-	skybox_viewLoc = glGetUniformLocation(skyboxProgram, "view");
-	skybox_skyboxLoc = glGetUniformLocation(skyboxProgram, "skybox");*/
-
 	return true;
 }
 
@@ -176,7 +146,9 @@ bool Window::initializeObjects() {
 	objects->addChild(playerObject);
 	cloud = new Cloud();
 	cloud->makeEntity(0, NULL, NULL, 80, 0, 0, 0, 0, 50);
-	//terrain = new Terrain();
+	terrain = new Terrain(256, 256, 4.0f, 32, 32);
+
+	createScene();
 
 	return true;
 }
@@ -264,6 +236,7 @@ void Window::resizeCallback(GLFWwindow* window, int w, int h) {
 	// Set the projection matrix.
 	projection = perspective(radians(fovy),
 		(float)width / (float)height, near_a, far_a);
+	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);	// Really Nice Perspective Calculations
 }
 
 void Window::idleCallback() {
@@ -272,14 +245,19 @@ void Window::idleCallback() {
 
 void Window::displayCallback(GLFWwindow* window) {
 
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
+	glEnable(GL_DEPTH_TEST);
 	handleMovement();
 
 	// ------------CLOUD----------------
-	glUseProgram(cloudProgram);
+	/*glUseProgram(cloudProgram);
     glUniformMatrix4fv(glGetUniformLocation(cloudProgram, "P"), 1, GL_FALSE, glm::value_ptr(projection));
     glUniformMatrix4fv(glGetUniformLocation(cloudProgram, "V"), 1, GL_FALSE, glm::value_ptr(view));
     glUniform1f(glGetUniformLocation(cloudProgram, "time"), (float)glfwGetTime() * 0.2f - 0.0f);
-	cloud->draw();
+	cloud->draw();*/
+
+	DrawScene();
 
 	// ----------- OBJECTS -------------
 	glUseProgram(program);
@@ -301,9 +279,8 @@ void Window::displayCallback(GLFWwindow* window) {
 
 	objects->draw(mat4(1), program, modelLoc, ambientLoc, diffuseLoc, specularLoc, shininessLoc);
 
-	// Gets events, including input such as keyboard and mouse or window resizing.
+
 	glfwPollEvents();
-	// Swap buffers.
 	glfwSwapBuffers(window);
 }
 
@@ -317,15 +294,12 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
 		case GLFW_KEY_A:
 			holdingA = action != GLFW_RELEASE;
 			break;
-
 		case GLFW_KEY_S:
 			holdingS = action != GLFW_RELEASE;
 			break;
-
 		case GLFW_KEY_D:
 			holdingD = action != GLFW_RELEASE;
 			break;
-
 		case GLFW_KEY_LEFT_CONTROL:
 			sprinting = action != GLFW_RELEASE;
 			break;
@@ -395,7 +369,7 @@ vec3 Window::trackballMapping(double x, double y) {
 void Window::cursor_position_callback(GLFWwindow* window, double xpos, double ypos) { 
 
 	// for rotation 
-	vec3 currPoint = trackballMapping(xpos, ypos);
+	currPoint = trackballMapping(xpos, ypos);
 	if (noLastPoint) {
 		lastPoint = currPoint;
 		noLastPoint = false;
@@ -455,7 +429,7 @@ void Window::cursor_position_callback(GLFWwindow* window, double xpos, double yp
 	}
 	glfwSetCursorPos(window, height/2, width/2);
 	noLastPoint = 1;
-	lastPoint = vec3(0, 0, 0); //currPoint;
+	//lastPoint = vec3(0, 0, 0); //currPoint;
 
 	// for translation in xy plane
 	if (mousePressed_R) {
@@ -490,37 +464,6 @@ void Window::mouse_button_callback(GLFWwindow* window, int button, int action, i
 
 void Window::scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
 
-}
-
-unsigned int Window::loadCubemap(vector<string> faces) {
-	unsigned int textureID;
-	glGenTextures(1, &textureID);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
-
-	int width, height, nrChannels;
-	for (unsigned int i = 0; i < faces.size(); i++)
-	{
-		unsigned char* data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
-		if (data)
-		{
-			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-				0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data
-			);
-			stbi_image_free(data);
-		}
-		else
-		{
-			cout << "Cubemap tex failed to load at path: " << faces[i] << endl;
-			stbi_image_free(data);
-		}
-	}
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-
-	return textureID;
 }
 
 vec3 Window::checkInSkybox(vec4 point) {
@@ -612,13 +555,10 @@ void Window::createScene() {
 	terrain->reset();
 	terrain->fault(250, 5.0f, 0.999f);
 	terrain->randomNoise(5.0f);
-	terrain->smooth(1, 1);
-
+	//terrain->smooth(1, 1);
 
 	terrainsize = terrain->getGridSize();
 	height = terrain->getMedianHeight();
-
-	//Sea->Reset(height - 2.0f);
 }
 
 void Window::DrawScene(){
@@ -633,13 +573,13 @@ void Window::DrawScene(){
 
 	// render terrain
 	glPushMatrix();
-	glRotatef(objYaw, 1, 0, 0);
-	glRotatef(objPitch, 0, 1, 0);
+	glRotatef(0, 1, 0, 0);
+	glRotatef(0, 0, 1, 0);
 	glTranslatef(0.0f - eye.x, 0.0f - eye.y, 0.0f - eye.z);
 	terrain->render();
 	glPopMatrix();
 
-	glEnable(GL_CULL_FACE);
-	glDisable(GL_BLEND);
+	//glEnable(GL_CULL_FACE);
+	//glDisable(GL_BLEND);
 	glPopMatrix();
 }

@@ -47,9 +47,9 @@ public:
 	static void handleMovement();
 
 	// generate procedurally generated objects
-	void createScene();
+	static void createScene();
 
-	void DrawScene();
+	static void DrawScene();
 };
 
 #endif

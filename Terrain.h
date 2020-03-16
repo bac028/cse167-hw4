@@ -16,7 +16,8 @@
 #include <vector>
 #include <string>
 #include <iostream>
-#include "SceneGraph/SceneGraph.h"
+#include "TerrainShading.h"
+#include "SOIL.h"
 
 struct VertexStr
 {
@@ -61,6 +62,7 @@ protected:
 	VertexStr* m_pVertices;
 	GLuint m_hVBOVertexBuffer;
 	GLenum m_hProgram;
+	TerrainShading m_Technique;
 
 	GLuint m_hTex[4];
 
@@ -77,8 +79,6 @@ public:
 	float getMedianHeight(void) const { return m_fMedianHeight;}
 	void render(void);
 	
-	
-	
 	void NormalGen();
 	bool GetVertexAttrib(VertexAttribute attr, GLuint column, GLuint row, glm::vec3& output) const;
 	void GenerateVertexBuffer();
@@ -87,5 +87,6 @@ public:
 	void SetNumSubsets(GLuint numsubsets);
 	void ResizeSubset(GLuint numsubset, GLuint numtriangles);
 	void GenerateSubsetIndicesBuffer(GLuint numsubset);
+	void DrawSubset(GLuint numsubset) const;
 };
 #endif

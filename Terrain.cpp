@@ -1,5 +1,4 @@
 #include "Terrain.h"
-#include "stb_image.h"
 #include <iostream>
 #include <algorithm>
 
@@ -7,6 +6,7 @@ using namespace std;
 
 Terrain::Terrain(GLuint width, GLuint height, GLfloat tilesize, GLuint htexturetiles, GLuint vtexturetiles)
 {
+	printf("Terrain ctor begin --\n");
 	m_hProgram = glCreateProgramObjectARB();
 
 	//Define width and height
@@ -112,72 +112,11 @@ Terrain::Terrain(GLuint width, GLuint height, GLfloat tilesize, GLuint htexturet
 	m_pSubsets[0].Material.Ambient[3] = 1.0f;
 	m_pSubsets[0].Material.Shininess[0] = 80.0f;
 
-	// TODO
-	//m_hTex[0] = SOIL_load_OGL_texture("Textures\\Rock.dds", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS | SOIL_FLAG_POWER_OF_TWO | SOIL_FLAG_TEXTURE_REPEATS);
-	//m_hTex[1] = SOIL_load_OGL_texture("Textures\\Sand.dds", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS | SOIL_FLAG_POWER_OF_TWO | SOIL_FLAG_TEXTURE_REPEATS);
-	//m_hTex[2] = SOIL_load_OGL_texture("Textures\\Grass.dds", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS | SOIL_FLAG_POWER_OF_TWO | SOIL_FLAG_TEXTURE_REPEATS);
-	//m_hTex[3] = SOIL_load_OGL_texture("Textures\\Snow.dds", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS | SOIL_FLAG_POWER_OF_TWO | SOIL_FLAG_TEXTURE_REPEATS);
-}
-
-
-Terrain::Terrain()
-{
-	float vertices[] = {
-		// positions          // colors           // texture coords
-		 0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f, // top right
-		 0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f, // bottom right
-		-0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f, // bottom left
-		-0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f  // top left 
-	};
-	float indices[] = {
-		0, 1, 3, // first triangle
-		1, 2, 3  // second triangle
-	};
-
-	glGenVertexArrays(1, &terrainVAO);
-	glGenBuffers(1, &terrainVBO);
-	glBindVertexArray(terrainEBO);
-	glBindBuffer(GL_ARRAY_BUFFER, terrainVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), &vertices, GL_STATIC_DRAW);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, terrainEBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), &indices, GL_STATIC_DRAW);
-
-	// position attribute
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-	// color attribute
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(1);
-	// texture coord attribute
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-	glEnableVertexAttribArray(2);
-
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-	glGenTextures(1, &texture);
-	glBindTexture(GL_TEXTURE_2D, texture);
-
-	// set the texture wrapping/filtering options (on the currently bound texture object)
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-	glBindTexture(GL_TEXTURE_2D, 0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-	glEnableVertexAttribArray(0);
-
-	// load and generate the texture
-	int width, height, nrChannels;
-	unsigned char* data = stbi_load("textures/grass.jpg", &width, &height, &nrChannels, 0);
-	if (data) {
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-		glGenerateMipmap(GL_TEXTURE_2D);
-	}
-	else {
-		std::cout << "Failed to load texture" << std::endl;
-	}
-	stbi_image_free(data);
+	m_hTex[0] = SOIL_load_OGL_texture("Textures\\Rock.dds", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS | SOIL_FLAG_POWER_OF_TWO | SOIL_FLAG_TEXTURE_REPEATS);
+	m_hTex[1] = SOIL_load_OGL_texture("Textures\\Sand.dds", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS | SOIL_FLAG_POWER_OF_TWO | SOIL_FLAG_TEXTURE_REPEATS);
+	m_hTex[2] = SOIL_load_OGL_texture("Textures\\Grass.dds", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS | SOIL_FLAG_POWER_OF_TWO | SOIL_FLAG_TEXTURE_REPEATS);
+	m_hTex[3] = SOIL_load_OGL_texture("Textures\\Snow.dds", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS | SOIL_FLAG_POWER_OF_TWO | SOIL_FLAG_TEXTURE_REPEATS);
+	printf("Terrain ctor end --\n");
 }
 
 Terrain::~Terrain()
@@ -189,6 +128,7 @@ Terrain::~Terrain()
 
 void Terrain::draw(unsigned int shader)
 {
+
 	// skybox cube
 	glBindVertexArray(terrainVAO);
 	glActiveTexture(GL_TEXTURE0);
@@ -202,6 +142,8 @@ void Terrain::draw(unsigned int shader)
 	glBindTexture(GL_TEXTURE_2D, 0); // unbind texture
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0); // unbind from ebo
 	glBindVertexArray(0);
+
+	printf("-- end Terrain::draw() ---");
 }
 
 void Terrain::reset(float height)
@@ -368,18 +310,19 @@ glm::vec3 Terrain::getGridSize() const
 
 void Terrain::render(void)
 {
+
+	//printf("-- start Terrain::render() ---");
 	
-	glUseProgramObjectARB(m_hProgram);
+	m_Technique.Set();
+	m_Technique.SetTexture0(m_hTex[0]);
+	m_Technique.SetTexture1(m_hTex[1]);
+	m_Technique.SetTexture2(m_hTex[2]);
+	m_Technique.SetTexture3(m_hTex[3]);
+	m_Technique.SetMedianHeight(m_fMedianHeight);
+	DrawSubset(0);
 
-	//m_Technique.Set();
-	//m_Technique.SetTexture0(m_hTex[0]);
-	//m_Technique.SetTexture1(m_hTex[1]);
-	//m_Technique.SetTexture2(m_hTex[2]);
-	//m_Technique.SetTexture3(m_hTex[3]);
-	//m_Technique.SetMedianHeight(m_fMedianHeight);
-	//DrawSubset(0);
+	//printf("-- start Terrain::render() ---");
 }
-
 
 
 void Terrain::NormalGen()
@@ -557,8 +500,6 @@ bool Terrain::GetVertexAttrib(VertexAttribute attr, GLuint column, GLuint row, g
 
 void Terrain::GenerateVertexBuffer()
 {
-
-	// TODO
 	glDeleteBuffersARB(1, &m_hVBOVertexBuffer);
 	glGenBuffersARB(1, &m_hVBOVertexBuffer);
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_hVBOVertexBuffer);
@@ -624,6 +565,39 @@ void Terrain::GenerateSubsetIndicesBuffer(GLuint numsubset)
 		glGenBuffersARB(1, &m_pSubsets[numsubset].hVBOIndexBuffer);
 		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_pSubsets[numsubset].hVBOIndexBuffer);
 		glBufferDataARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 3 * m_pSubsets[numsubset].NumTriangles * sizeof(GLuint), m_pSubsets[numsubset].pIndices, GL_STATIC_DRAW_ARB);
+		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
+	}
+}
+
+void Terrain::DrawSubset(GLuint numsubset) const
+{
+	if (numsubset < m_uiNumSubsets)
+	{
+		//Set material properties
+		glMaterialfv(GL_FRONT, GL_SPECULAR, m_pSubsets[numsubset].Material.Specular);
+		glMaterialfv(GL_FRONT, GL_DIFFUSE, m_pSubsets[numsubset].Material.Diffuse);
+		glMaterialfv(GL_FRONT, GL_AMBIENT, m_pSubsets[numsubset].Material.Ambient);
+		glMaterialfv(GL_FRONT, GL_SHININESS, m_pSubsets[numsubset].Material.Shininess);
+
+		//Setup array usage states
+		glEnableClientState(GL_VERTEX_ARRAY);
+		glEnableClientState(GL_NORMAL_ARRAY);
+		glClientActiveTextureARB(GL_TEXTURE0_ARB);
+		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+		//Setup arrays
+		glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_hVBOVertexBuffer);
+		glVertexPointer(4, GL_FLOAT, sizeof(VertexStr), 0);
+		glNormalPointer(GL_FLOAT, sizeof(VertexStr), (GLvoid*)(sizeof(glm::vec3)));
+		glTexCoordPointer(2, GL_FLOAT, sizeof(VertexStr), (GLvoid*)(2 * sizeof(glm::vec3)));
+		//Draw		
+		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_pSubsets[numsubset].hVBOIndexBuffer);
+		glDrawElements(GL_TRIANGLES, 3 * m_pSubsets[numsubset].NumTriangles, GL_UNSIGNED_INT, 0);
+		//Restore previous state
+		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+		glDisableClientState(GL_NORMAL_ARRAY);
+		glDisableClientState(GL_VERTEX_ARRAY);
+		// bind with 0, so, switch back to normal pointer operation
+		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
 	}
 }
