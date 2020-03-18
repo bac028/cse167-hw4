@@ -17,7 +17,6 @@
 #include <string>
 #include <iostream>
 #include "TerrainShading.h"
-#include "SOIL.h"
 
 struct VertexStr
 {
@@ -85,6 +84,7 @@ public:
 	void ResizeSubset(GLuint numsubset, GLuint numtriangles);
 	void GenerateSubsetIndicesBuffer(GLuint numsubset);
 	void DrawSubset(GLuint numsubset) const;
+	float GetPointHeight(float xpos, float zpos) const;
 
 	VertexStr* getVertices() { return m_pVertices; }
 };

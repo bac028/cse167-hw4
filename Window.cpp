@@ -14,10 +14,13 @@ namespace {
 	Terrain* terrain;
 	TerrainGeometry* terrainGeometry;
 	Cloud* cloud;
+	PlantGeometry* plantGeometry;
+	Transform* plant;
 
-	vec3 playerCenter(0, 0, 200);
-	vec3 eye(0, 1, 200);		// Camera position.
-	vec3 center(0, 0, 200);		// The point we are looking at.
+
+	vec3 playerCenter(0, 0, 250);
+	vec3 eye(0, 1, 250);		// Camera position.
+	vec3 center(0, 1, 255);		// The point we are looking at.
 	vec3 up(0, 1, 0);			// The up direction of the camera.
 
 	// movement flags
@@ -141,17 +144,34 @@ bool Window::initializeProgram() {
 
 bool Window::initializeObjects() {
 
-	playerObject = new Robot(translate(mat4(1), playerCenter));
+	printf("begin initializing objects >>>>");
 
 	objects = new Transform(mat4(1));
-	objects->addChild(playerObject);
 	cloud = new Cloud();
 	cloud->makeEntity(0, NULL, NULL, 80, 0, 0, 0, 0, 50);
 	terrain = new Terrain(256, 256, 4.0f, 32, 32);
 
 	createScene();
 
+	playerCenter.y = terrain->GetPointHeight(playerCenter.x, playerCenter.z) + 1.75f;
+	playerObject = new Robot(mat4(1));
+	playerObject->translate(playerCenter.x, playerCenter.y, playerCenter.z);
+
+	eye = playerObject->getEyePosition();
+	center = eye;
+	center.z += 5.0f;
+
+	view = lookAt(eye, center, up);
+	objects->addChild(playerObject);
+
 	objects->addChild(terrainGeometry);
+
+	plantGeometry = new PlantGeometry();
+	plant = new Transform(mat4(1));
+
+	//objects->addChild(plantGeometry);
+
+	printf("done initializing objects >>>>");
 
 	return true;
 }
@@ -249,7 +269,7 @@ void Window::idleCallback() {
 void Window::displayCallback(GLFWwindow* window) {
 
 	//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	//glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
+	glClearColor(0.0f, 0.4f, 0.4f, 0.0f);
 	//glEnable(GL_DEPTH_TEST);
 	handleMovement();
 
@@ -279,6 +299,8 @@ void Window::displayCallback(GLFWwindow* window) {
 	glUniform3fv(colorLoc, 1, glm::value_ptr(glm::vec3(1, 1, 1)));
 
 	objects->draw(mat4(1), program, modelLoc, ambientLoc, diffuseLoc, specularLoc, shininessLoc);
+
+	plant->draw(mat4(1), program, modelLoc, ambientLoc, diffuseLoc, specularLoc, shininessLoc);
 
 	glfwPollEvents();
 	glfwSwapBuffers(window);
@@ -484,59 +506,65 @@ bool checkCollision(vec3 objOne, vec3 objTwo){
 	return false;
 }
 
-void Window::handleMovement() {
-
-	float speedModifier = sprinting ? 10.00f : 1.0f;
-	vec3 direction = 0.01f * speedModifier * normalize((vec3(center.x, 0, center.z) - vec3(eye.x, 0, eye.z)));
+void Window::move(vec3 translation) {
+	
 	vec4 newCenter;
 	vec4 newEye;
+
+	if (cameraType == FREE_CAMERA) {
+
+		newEye = translate(mat4(1), translation) * vec4(eye, 1);
+		eye = checkInSkybox(newEye);
+		newCenter = translate(mat4(1), translation) * vec4(center, 1);
+		center = vec3(newCenter.x, newCenter.y, newCenter.z);
+	}
+	
+	if (cameraType != FREE_CAMERA) {
+		playerObject->translate(translation.x, -playerObject->currentY, translation.z);
+		playerObject->translate(0, terrain->GetPointHeight(playerObject->currentX, playerObject->currentZ) + 1.75f, 0);
+
+		vec3 cameraDirection = normalize(center - eye);
+		eye = playerObject->getEyePosition();
+		newCenter = translate(mat4(1), cameraDirection) * vec4(eye, 1);
+		center = vec3(newCenter.x, newCenter.y, newCenter.z);
+
+		if (cameraType == THIRD_PERSON) {
+			newEye = translate(mat4(1), -15.0f * vec3(cameraDirection.x, cameraDirection.y, cameraDirection.z)) * vec4(eye, 1);
+			eye = vec3(newEye.x, newEye.y, newEye.z);
+		}
+	}
+
+	view = lookAt(eye, center, up);
+}
+
+void Window::handleMovement() {
+
+	float speedModifier = sprinting ? 10.00f : 5.0f;
+	vec3 direction = 0.01f * speedModifier * normalize((vec3(center.x, 0, center.z) - vec3(eye.x, 0, eye.z)));
+	playerObject->animationSpeed = sprinting ? 3.0f : 0.2f;
 
 	// forward
 	if (holdingW) {
 		vec3 translation = direction;
-		newEye = translate(mat4(1), direction) * vec4(eye, 1);
-		eye = checkInSkybox(newEye);
-		newCenter = translate(mat4(1), direction) * vec4(center, 1);
-		center = vec3(newCenter.x, newCenter.y, newCenter.z);
-		if (cameraType != FREE_CAMERA)
-			playerObject->translate(translation.x, translation.y, translation.z);
-		view = lookAt(eye, center, up);
+		move(translation);
 	}
 
 	// backward
 	else if (holdingS) {
 		vec3 translation = -direction;
-		newEye = translate(mat4(1), -direction) * vec4(eye, 1);
-		eye = checkInSkybox(newEye);
-		newCenter = translate(mat4(1), -direction) * vec4(center, 1);
-		center = vec3(newCenter.x, newCenter.y, newCenter.z);
-		if (cameraType != FREE_CAMERA)
-			playerObject->translate(translation.x, translation.y, translation.z);
-		view = lookAt(eye, center, up);
+		move(translation);
 	}
 
 	// right
 	if (holdingA) {
 		vec3 translation = cross(-direction, up);
-		newEye = translate(mat4(1), cross(-direction, up)) * vec4(eye, 1);
-		eye = checkInSkybox(newEye);
-		newCenter = translate(mat4(1), cross(-direction, up)) * vec4(center, 1);
-		center = vec3(newCenter.x, newCenter.y, newCenter.z);
-		if (cameraType != FREE_CAMERA)
-			playerObject->translate(translation.x, translation.y, translation.z);
-		view = lookAt(eye, center, up);
+		move(translation);
 	}
 
 	// left
 	else if (holdingD) {
 		vec3 translation = cross(direction, up);
-		newEye = translate(mat4(1), cross(direction, up)) * vec4(eye, 1);
-		eye = checkInSkybox(newEye);
-		newCenter = translate(mat4(1), cross(direction, up)) * vec4(center, 1);
-		center = vec3(newCenter.x, newCenter.y, newCenter.z);
-		if (cameraType != FREE_CAMERA)
-			playerObject->translate(translation.x, translation.y, translation.z);
-		view = lookAt(eye, center, up);
+		move(translation);
 	}
 }
 
@@ -548,8 +576,8 @@ void Window::createScene() {
 	srand(20202);
 
 	terrain->reset();
-	terrain->fault(250, 5.0f, 0.999f);
-	terrain->randomNoise(5.0f);
+	terrain->fault(90, 4.0f, 0.999f);
+	terrain->randomNoise(3.0f);
 	terrain->smooth(1, 1);
 
 	vector<vec3> positions;

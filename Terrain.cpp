@@ -117,12 +117,14 @@ Terrain::Terrain(GLuint width, GLuint height, GLfloat tilesize, GLuint htexturet
 	m_pSubsets[0].Material.Ambient[3] = 1.0f;
 	m_pSubsets[0].Material.Shininess[0] = 80.0f;
 
+	/*
 	printf("Get textures\n");
 	m_hTex[0] = SOIL_load_OGL_texture("Textures\\Rock.dds", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS | SOIL_FLAG_POWER_OF_TWO | SOIL_FLAG_TEXTURE_REPEATS);
 	m_hTex[1] = SOIL_load_OGL_texture("Textures\\Sand.dds", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS | SOIL_FLAG_POWER_OF_TWO | SOIL_FLAG_TEXTURE_REPEATS);
 	m_hTex[2] = SOIL_load_OGL_texture("Textures\\Grass.dds", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS | SOIL_FLAG_POWER_OF_TWO | SOIL_FLAG_TEXTURE_REPEATS);
 	m_hTex[3] = SOIL_load_OGL_texture("Textures\\Snow.dds", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS | SOIL_FLAG_POWER_OF_TWO | SOIL_FLAG_TEXTURE_REPEATS);
 	printf("Terrain ctor end --\n");
+	*/
 }
 
 Terrain::~Terrain() {
@@ -285,21 +287,6 @@ void Terrain::smooth(GLuint iterations, GLuint centerweight) {
 glm::vec3 Terrain::getGridSize() const {
 	glm::vec3 size(m_fHsize, 0.0f, m_fVsize);
 	return size;
-}
-
-void Terrain::render(void) {
-
-	//printf("-- start Terrain::render() ---");
-	
-	m_Technique.Set();
-	m_Technique.SetTexture0(m_hTex[0]);
-	m_Technique.SetTexture1(m_hTex[1]);
-	m_Technique.SetTexture2(m_hTex[2]);
-	m_Technique.SetTexture3(m_hTex[3]);
-	m_Technique.SetMedianHeight(m_fMedianHeight);
-	DrawSubset(0);
-
-	//printf("-- start Terrain::render() ---");
 }
 
 
@@ -472,6 +459,49 @@ bool Terrain::GetVertexAttrib(VertexAttribute attr, GLuint column, GLuint row, g
 		}
 	}
 	return succeded;
+}
+
+//xpos and ypos are in the grid's model space: it may be necessary to convert.
+float Terrain::GetPointHeight(float xpos, float zpos) const
+{
+	glm::vec3 tmp1, tmp2;
+	GLuint i, j;
+	float w;
+	float xposition = xpos;
+	float zposition = zpos;
+	float tmpy1, tmpy2, yposition;
+
+	xposition += 0.5f * float(m_iWidth - 1) * m_fTileSize;
+	zposition -= 0.5f * float(m_iHeight - 1) * m_fTileSize;
+	i = GLuint(xposition / m_fTileSize);
+	j = GLuint(0.0f - zposition / m_fTileSize);
+	if (i >= m_iWidth)
+	{
+		return 0.0f;
+	}
+	if (j >= m_iHeight)
+	{
+		return 0.0f;
+	}
+
+	GetVertexAttrib(POSITION, i, j, tmp1);
+	GetVertexAttrib(POSITION, i, j + 1, tmp2);
+	w = ((tmp1.z - zpos) / m_fTileSize);
+
+	tmpy1 = (1.0f - w) * tmp1.y + w * tmp2.y;
+
+	GetVertexAttrib(POSITION, i + 1, j, tmp1);
+	GetVertexAttrib(POSITION, i + 1, j + 1, tmp2);
+
+	tmpy2 = (1.0f - w) * tmp1.y + w * tmp2.y;
+
+	GetVertexAttrib(POSITION, i, j, tmp1);
+	GetVertexAttrib(POSITION, i + 1, j, tmp2);
+
+	w = ((xpos - tmp1.x) / m_fTileSize);
+	yposition = (1.0f - w) * tmpy1 + w * tmpy2;
+
+	return yposition;
 }
 
 void Terrain::GenerateVertexBuffer() {

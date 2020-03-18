@@ -6,11 +6,6 @@ struct Material {
     vec3 diffuse;
     vec3 specular;
     float shininess;
-}; 
-
-struct PointLight {
-    vec3 position;
-    vec3 color;
 };
 
 struct DirectionalLight {
@@ -32,8 +27,6 @@ uniform vec3 materialSpecular;
 uniform float materialShininess;
 
 uniform vec3 viewPos;
-uniform vec3 pointLightColor;
-uniform vec3 pointLightPosition;
 uniform vec3 dirLightColor;
 uniform vec3 dirLightDirection;
 
@@ -42,6 +35,8 @@ uniform float dirEnabled;
 uniform float pointEnabled;
 
 out vec4 fragColor;
+
+DirectionalLight dirLight = {vec3(-100, -100, -100), vec3(1, 0.5f, 0.5f)};
 
 vec3 calcDirLight(DirectionalLight light, Material material, vec3 normal, vec3 viewDir) {
 
@@ -61,30 +56,6 @@ vec3 calcDirLight(DirectionalLight light, Material material, vec3 normal, vec3 v
     return light.color * (ambient + diffuse + specular);
 }
 
-vec3 calcPointLight(PointLight light, Material material, vec3 normal, vec3 fragPos, vec3 viewDir) {
-    vec3 lightDir = normalize(light.position - fragPos);
-
-    // diffuse shading
-    float diff = max(dot(normal, lightDir), 0.0);
-
-    // specular shading
-    vec3 reflectDir = reflect(-lightDir, normal);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
-
-    // attenuation
-    float distance = length(light.position - fragPos);
-    float attenuation = 1.0f / (1.0f * distance);
-
-    // combine results
-    vec3 ambient = light.color * material.ambient;
-    vec3 diffuse = light.color * diff * material.diffuse;
-    vec3 specular = light.color * spec * material.specular;
-    ambient *= attenuation;
-    diffuse *= attenuation;
-    specular *= attenuation;
-    return (ambient + diffuse + specular);
-}
-
 void main()
 {
     // normal mode
@@ -99,21 +70,15 @@ void main()
 
         Material material = {materialAmbient, materialDiffuse, materialSpecular, materialShininess};
 
-        DirectionalLight dirLight = {dirLightDirection, dirLightColor};
-        PointLight pointLight = {pointLightPosition, pointLightColor};
-
         vec3 result = vec3(0, 0, 0);
 
         // adds directional light
         result += calcDirLight(dirLight, material, norm, viewDir);
 
-        // adds point light
-        //result += calcPointLight(pointLight, material, norm, FragPos, viewDir);
-
         fragColor = vec4(result, 1.0f);
     }
 
-    // show point light
+    // toon shading mode
     else if (mode == 2.0) {
 
         vec3 ambientColor = materialAmbient;
@@ -122,7 +87,7 @@ void main()
         const float scaleFactor = 1.0 / levels;
         vec3 diffuseColor = materialDiffuse;
         
-        vec3 L = normalize ((vec3(10.0f, 10.0f, 10.0f)) - world_pos);
+        vec3 L = normalize (dirLight.direction - world_pos);
         vec3 V = normalize (viewPos - FragPos);
  
         float diffuse = max(0, dot(L, world_normal));
@@ -142,7 +107,7 @@ void main()
         float edgeDetection = (dot (V, world_normal) > 0.3) ? 1 : 0.25f;
         
         //vec3 color = edgeDetection * (ambientColor + diffuseColor + (specular * materialSpecular) * specMask);
-        vec3 color = edgeDetection * (ambientColor + diffuseColor + (specular * materialSpecular) * specMask);
+        vec3 color = dirLight.color * edgeDetection * (ambientColor + diffuseColor + (specular * materialSpecular) * specMask);
  
         fragColor = vec4(color, 1.0f);
     }

@@ -13,6 +13,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/glm.hpp>
 
+
 #include <vector>
 #include <string>
 #include <iostream>
@@ -40,17 +41,17 @@ class Transform : public Node {
 protected:
 	std::vector<Node*> children; // children pointers
 
-	float animationSpeed = 0.2f;
-
 	glm::vec3 rotationVector;
 	float maxA, minA;
 	bool animated = false;
 	bool moving = false;
 	int dir = 1;
+	
+public:
+
+	float animationSpeed = 0.2f;
 
 	float currentX, currentY, currentZ, currentScale, currentAngle;
-
-public:
 	glm::mat4 M; // transformation matrix
 	Transform(glm::mat4 M);
 	float minX, minY, minZ, maxX, maxY, maxZ;
@@ -108,6 +109,7 @@ protected:
 	std::vector<glm::vec3> normals;
 	std::vector<glm::vec3> textures;
 	std::vector<unsigned int> faces;
+	GLuint normalMap;
 public:
 	TerrainGeometry(std::vector<glm::vec3> vertices, std::vector<glm::vec3> normals, std::vector<glm::vec3> textures, std::vector<unsigned int> faces);
 	void TerrainGeometry::draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelLoc, unsigned int ambientLoc, unsigned int diffuseLoc, unsigned int specularLoc, unsigned int shininessLoc);
@@ -126,6 +128,31 @@ public:
 		glm::mat4 globalPosition = M * eye->getModel();
 		return glm::vec3(globalPosition[3].x, globalPosition[3].y, globalPosition[3].z); 
 	};
+};
+
+class RobotGeometry : public Geometry {
+public:
+	RobotGeometry();
+	~RobotGeometry();
+
+	void draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelLoc, unsigned int ambientLoc, unsigned int diffuseLoc, unsigned int specularLoc, unsigned int shininessLoc);
+};
+
+class PlantGeometry : public Geometry {
+protected:
+	std::string LSystemString;
+	float lineWidth = 5;
+	float segmentLength = 2;
+	float angle = 20;
+	glm::vec3 position = glm::vec3(0, 10, 250);
+
+public:
+	PlantGeometry();
+	~PlantGeometry();
+	void addLevel();
+
+	void draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelLoc, unsigned int ambientLoc, unsigned int diffuseLoc, unsigned int specularLoc, unsigned int shininessLoc);
+
 };
 
 #endif

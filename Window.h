@@ -50,6 +50,7 @@ public:
 	static void createScene();
 
 	static void DrawScene();
+	static void move(glm::vec3 translation);
 };
 
 #endif
