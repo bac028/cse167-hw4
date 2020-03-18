@@ -16,7 +16,6 @@
 #include <vector>
 #include <string>
 #include <iostream>
-#include "TerrainShading.h"
 
 struct VertexStr
 {
@@ -58,7 +57,6 @@ protected:
 	VertexStr* m_pVertices;
 	GLuint m_hVBOVertexBuffer;
 	GLenum m_hProgram;
-	TerrainShading m_Technique;
 
 public:
 	GLuint m_iWidth, m_iHeight;
