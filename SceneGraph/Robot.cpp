@@ -6,6 +6,7 @@ using namespace std;
 
 Robot::Robot(glm::mat4 M) : Transform(M) {
 
+	halo = false;
 	ObjMaterial material;
 	material.shininess = 100.0f;
 	material.specular = glm::vec3(0.5f, 0.5f, 1.0f);
@@ -19,10 +20,12 @@ Robot::Robot(glm::mat4 M) : Transform(M) {
 	bunnyMaterial.ambient = glm::vec3(0.25f, 0.2f, 0.35f);
 
 	// initializes geometries for body parts
-	RobotGeometry* bodyGeometry = new RobotGeometry(), * headGeometry = new RobotGeometry(), * eyeGeometry = new RobotGeometry(), * limbGeometry = new RobotGeometry(), * antennaGeometry = new RobotGeometry();
+	headGlowGeometry = new RobotGeometry();
+	Geometry* bodyGeometry = new Geometry(), * headGeometry = new Geometry(), * eyeGeometry = new Geometry(), * limbGeometry = new Geometry(), * antennaGeometry = new Geometry();
 	limbGeometry->init("limb_s", 0, material);
 	eyeGeometry->init("eyeball_s", 0, material);
 	headGeometry->init("bunny", 1, bunnyMaterial);
+	headGlowGeometry->init("bunny", 1, bunnyMaterial);
 	bodyGeometry->init("body_s", 0, material);
 	//antennaGeometry->init("antenna_s", 0);
 
@@ -31,10 +34,9 @@ Robot::Robot(glm::mat4 M) : Transform(M) {
 	body->addChild(bodyGeometry);
 	this->addChild(body);
 
-	//Transform* headGlow = new Transform(glm::scale(glm::translate(glm::mat4(1), glm::vec3(0, 1.75, -0.1)), glm::vec3(1.1f,1.1f,1.1f)));
-	//headGlow->addChild(headGeometry);
-	//this->addChild(headGlow);
-	
+	Transform* headGlow = new Transform(glm::scale(glm::translate(glm::mat4(1), glm::vec3(0, 1.75, 0)), glm::vec3(1.1)));
+	headGlow->addChild(headGlowGeometry);
+	this->addChild(headGlow);
 
 	Transform* head = new Transform(glm::translate(glm::mat4(1), glm::vec3(0, 1.75, 0)));
 	head->addChild(headGeometry);
@@ -66,26 +68,67 @@ Robot::Robot(glm::mat4 M) : Transform(M) {
 	this->addChild(rightLeg);
 }
 
+void Robot::SetGlow(bool halo) {
+	this->halo = halo;
+	headGlowGeometry->halo = halo;
+}
+
+
+
 RobotGeometry::RobotGeometry() : Geometry::Geometry() {}
 
 
 void RobotGeometry::draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelLoc, unsigned int ambientLoc, unsigned int diffuseLoc, unsigned int specularLoc, unsigned int shininessLoc) {
-	
-	
-	
-	glClearStencil(0x4);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT |GL_STENCIL_BUFFER_BIT);
-	
-	glEnable(GL_STENCIL_TEST);
-	glStencilFunc(GL_ALWAYS, 0x0, 0x4);
-	glStencilMask(0x4);
-	glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+	currModel = C * initModel;
+	if(halo){
+		float haloScale = 1.5f;
+		glUniform1f(glGetUniformLocation(shaderProgram, "mode"), 0);
+		//glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+		glDepthMask(GL_FALSE);
+		glStencilMask(0xffffffff);
+		glClearStencil(0x4);
+		glClear(GL_STENCIL_BUFFER_BIT);
 
-	glDisable(GL_LIGHTING);
-	glEnable(GL_STENCIL_TEST);
-	glStencilFunc(GL_EQUAL, 0x4, 0x4);
-	glStencilMask(0x4);
-	glStencilOp(GL_KEEP, GL_KEEP, GL_INVERT);
-	glEnable(GL_BLEND);
-	glColor4f(0.8, 0.8, 0.0, 0.3);
+		glDisable(GL_LIGHTING);
+		glEnable(GL_BLEND);
+		glEnable(GL_STENCIL_TEST);
+		glColor4f(1.8, 1.8, 0.0, 0.3);  /* 30% sorta yellow. */
+		glStencilFunc(GL_EQUAL, 0x4, 0x4);
+		glStencilMask(0x4);
+		glStencilOp(GL_KEEP, GL_KEEP, GL_INVERT);
+
+		
+		
+		// Bind to the VAO.
+		glBindVertexArray(vao);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo); // unbind from ebo
+
+		glUniform3fv(ambientLoc, 1.0, glm::value_ptr(material.ambient));
+		glUniform3fv(diffuseLoc, 1.0, glm::value_ptr(material.diffuse));
+		glUniform3fv(specularLoc, 1.0, glm::value_ptr(material.specular));
+		glUniform1f(shininessLoc, material.shininess);
+		
+
+		//glUseProgram(shaderProgram);
+		glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(currModel));
+		
+		// draws triangles
+		glScalef(haloScale, haloScale, haloScale);
+		glDrawElements(GL_TRIANGLES, faces.size(), GL_UNSIGNED_INT, 0);
+
+		
+
+		glDepthMask(GL_TRUE);
+
+		// Unbind from the VAO.
+		glBindVertexArray(0);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0); // unbind from ebo
+
+		glDisable(GL_BLEND);
+		glDisable(GL_STENCIL_TEST);
+		glEnable(GL_LIGHTING);
+	}
+	
+
+	
 }

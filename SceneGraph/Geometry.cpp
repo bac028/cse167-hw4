@@ -1,7 +1,6 @@
 #include "SceneGraph.h"
 
 #include <algorithm>
-#include "../Image/IMAGE.h"
 #include <stack>
 
 using namespace std;
@@ -96,7 +95,7 @@ void Geometry::init(string objFilename, int objFormat, ObjMaterial material) {
 		}
 	}
 
-	std::cout << "input lengths: " << input_vertices.size() << ", " << input_normals.size() << endl;
+	//std::cout << "input lengths: " << input_vertices.size() << ", " << input_normals.size() << endl;
 
 	fclose(fp);
 
@@ -114,7 +113,7 @@ void Geometry::init(string objFilename, int objFormat, ObjMaterial material) {
 		normals = input_normals;
 	}
 
-	std::cout << "vertices: " << vertices.size() << ", normals: " << normals.size() << ", faces: " << faces.size() << std::endl;
+	//std::cout << "vertices: " << vertices.size() << ", normals: " << normals.size() << ", faces: " << faces.size() << std::endl;
 
 	float centerX = (float)((double)maxX + minX) / 2.0;
 	float centerY = (float)((double)maxY + minY) / 2.0;
@@ -183,6 +182,7 @@ void Geometry::draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelL
 	glUniform3fv(diffuseLoc, 1, glm::value_ptr(material.diffuse));
 	glUniform3fv(specularLoc, 1, glm::value_ptr(material.specular));
 	glUniform1f(shininessLoc, material.shininess);
+	glUniform1f(glGetUniformLocation(shaderProgram, "mode"), 2);
 
 	//glUseProgram(shaderProgram);
 	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(currModel));
@@ -240,18 +240,6 @@ TerrainGeometry::TerrainGeometry(std::vector<glm::vec3> vertices, std::vector<gl
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
 
-	IMAGE normalMapImage;
-    normalMapImage.Load("../Textures/bump_map.bmp");
-    normalMapImage.ExpandPalette();
-
-    //Convert normal map to texture
-    glGenTextures(1, &normalMap);
-    glBindTexture(GL_TEXTURE_2D, normalMap);
-    glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA8, normalMapImage.width, normalMapImage.height, 0, normalMapImage.format, GL_UNSIGNED_BYTE, normalMapImage.data);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 }
 
 TerrainGeometry::~TerrainGeometry() {
@@ -270,11 +258,6 @@ void TerrainGeometry::draw(glm::mat4 C, unsigned int shaderProgram, unsigned int
     glEnable(GL_TEXTURE_2D);
 	glVertexPointer(3, GL_FLOAT, sizeof(vertices), &vertices[0]);
     glEnableClientState(GL_VERTEX_ARRAY);
-
-    //Send texture coords for normal map to unit 0
-    glTexCoordPointer(2, GL_FLOAT, sizeof(vertices), &vertices[0].s);
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-
 
 
 	//Set up texture environment to do (tex0 dot tex1)*color
@@ -303,16 +286,6 @@ void TerrainGeometry::draw(glm::mat4 C, unsigned int shaderProgram, unsigned int
 	glVertexPointer(3, GL_FLOAT, sizeof(vertices), &vertices[0]);
 	glEnableClientState(GL_VERTEX_ARRAY);
 
-	//Send texture coords for normal map to unit 0
-	glTexCoordPointer(2, GL_FLOAT, sizeof(vertices), &vertices[0].s);
-	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-
-	//Send tangent space light vectors for normalisation to unit 1
-	glClientActiveTextureARB(GL_TEXTURE1_ARB);
-	glTexCoordPointer(3, GL_FLOAT, sizeof(vertices), &vertices[0].s);
-	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-	glClientActiveTextureARB(GL_TEXTURE0_ARB);
-
 	// Bind to the VAO.
 	glBindVertexArray(vao);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo); // unbind from ebo
@@ -325,124 +298,181 @@ void TerrainGeometry::draw(glm::mat4 C, unsigned int shaderProgram, unsigned int
 
 	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(currModel));
 
-	
-
-
 	// draws triangles
 	glDrawElements(GL_TRIANGLES, faces.size(), GL_UNSIGNED_INT, 0);
-
 	
 	// Unbind from the VAO.
 	glBindVertexArray(0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0); // unbind from ebo
-	
 }
 
 
-PlantGeometry::PlantGeometry() {
-	LSystemString = "[FL]";
+PlantGeometry::PlantGeometry(glm::vec3 startingPosition) {
+	LSystemString = "X";
 
-	// generate L system string
-	//int levels = ((int) ((float)rand() / RAND_MAX) * 3) + 3;
-	//for (int i = 0; i < levels; i++)
-	//	addLevel();
-	std::cout << LSystemString << std::endl;
-}
+	this->position = startingPosition;
 
-void PlantGeometry::addLevel() {
-	//float num = (float)rand() / RAND_MAX;
+	int levels = (2 * rand() / RAND_MAX) + 4;
+	for (int i = 0; i < levels; i++) {
+		addLevel();
+	}
 
-	//std::string ch = "";
+	//std::cout << LSystemString << std::endl;
 
-	//for (int i = 0; i < LSystemString.length(); i++) {
-	//	ch = LSystemString.at(i);
+	// generates lines based on l system
+	generatePoints();
 
-	//	if (ch.compare("F") == 0) {
-	//		LSystemString.replace(i, 1, "F[+F][&FL][<F]F");
-	//		i = i + 14;
-	//	}
-	//	else if (ch.compare("X") == 0) {
-
-
-	//		/*if (num < 0.4) {
-	//			LSystemString.replace(i, 1, "D[LXV]D[RXV]LX");
-	//		}
-	//		else if (num < 0.6) {
-	//			LSystemString.replace(i, 1, "D[LX]D[RX]DX");
-	//		}
-	//		else if (num < 0.8) {
-	//			LSystemString.replace(i, 1, "D[RX]D[LX]DX");
-	//		}
-	//		else {
-	//			LSystemString.replace(i, 1, "D[RXV]D[LXV]RX");
-	//		}
-	//		i = i + 13;*/
-	//	}
-	//}
-}
-
-void PlantGeometry::draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelLoc, unsigned int ambientLoc, unsigned int diffuseLoc, unsigned int specularLoc, unsigned int shininessLoc) {
-
+	// Generate a vertex array (VAO) and a vertex buffer objects (VBO).
 	glGenVertexArrays(1, &vao);
 	glGenBuffers(1, &vbo[0]);
 
 	glBindVertexArray(vao);
+
+	// Bind to the first VBO. We will use it to store the points.
 	glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
 
+	// Pass in the data.
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * lines.size(), lines.data(), GL_STATIC_DRAW);
+
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
+
+	// Unbind from the VBO.
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	// Unbind from the VAO.
+	glBindVertexArray(0);
+}
+
+void PlantGeometry::addLevel() {
+	float num = (4 * rand()) / RAND_MAX;
+
+	std::string ch = "";
+
+	for (int i = 0; i < LSystemString.length(); i++) {
+		ch = LSystemString.at(i);
+
+		if (ch.compare("F") == 0) {
+		}
+
+		if (ch.compare("X") == 0) {
+
+			if (num == 0) {
+				LSystemString.replace(i, 1, "F[+FX]F[&+FX]F[^FX][&F]");
+				i += 21;
+			}
+			else if (num == 1) {
+				LSystemString.replace(i, 1, "FF[^-FX][X]FF[^+FX]F");
+				i += 20;
+			}
+			else if (num == 2) {
+				LSystemString.replace(i, 1, "F[^&FX]F[-FX]");
+				i += 12;
+			}
+			else {
+				LSystemString.replace(i, 1, "FF[^FX][&FX]F[+FX]");
+				i += 18;
+			}
+		}
+	}
+}
+
+void PlantGeometry::generatePoints() {
+
 	glm::vec3 currentPoint = position;
-	glm::vec3 dir = glm::vec3(0, 1, 0);
+	glm::vec3 dir = glm::vec3(0, this->segmentLength, 0);
+	
 
 	stack<glm::vec3> savedPosition;
 	stack<glm::vec3> savedDirection;
 
-	vector<float*> lines;
-
 	std::string ch = "";
 	for (int i = 0; i < LSystemString.length(); i++) {
-		ch = LSystemString.at(i);
 
+		float angleOffset = ((float)rand()) / RAND_MAX * 12 - 3; // +- 5 angles
+		float lengthOffset = ((float)rand()) / RAND_MAX;
+		ch = LSystemString.at(i);
+		
 		// Forward by distance
-		if (ch.compare("F") == 0) {
-			float line[] = { currentPoint.x, currentPoint.y, currentPoint.z, currentPoint.x + dir.x, currentPoint.y + dir.y, currentPoint.z + dir.z };
-			lines.push_back(line);
-			currentPoint += dir;
+		if (ch.compare("F") == 0 || ch.compare("X") == 0) {
+			lines.push_back(currentPoint.x);
+			lines.push_back(currentPoint.y);
+			lines.push_back(currentPoint.z);
+			lines.push_back(currentPoint.x + dir.x + lengthOffset);
+			lines.push_back(currentPoint.y + dir.y + lengthOffset);
+			lines.push_back(currentPoint.z + dir.z + lengthOffset);
+			currentPoint += (dir + lengthOffset);
 		}
 
 		// push current state
 		else if (ch.compare("[") == 0) {
+			savedPosition.push(currentPoint);
+			savedDirection.push(dir);
 		}
 
 		// pop current state
 		else if (ch.compare("]") == 0) {
+			currentPoint = savedPosition.top();
+			savedPosition.pop();
+			dir = savedDirection.top();
+			savedDirection.pop();
 		}
 
 		// end and draw leaf
 		else if (ch.compare("L") == 0) {
-
 		}
 
 		// turn left
 		else if (ch.compare("+") == 0) {
+			glm::vec4 newDir = glm::rotate(glm::mat4(1), glm::radians(angle + angleOffset), glm::vec3(0, 0, 1)) * glm::vec4(dir, 1.0f);
+			dir = glm::vec3(newDir.x, newDir.y, newDir.z);
 		}
 
 		// turn right
 		else if (ch.compare("-") == 0) {
+			glm::vec4 newDir = glm::rotate(glm::mat4(1), glm::radians(angle + angleOffset), glm::vec3(0, 0, -1)) * glm::vec4(dir, 1.0f);
+			dir = glm::vec3(newDir.x, newDir.y, newDir.z);
 		}
 
 		// pitch down
 		else if (ch.compare("&") == 0) {
+			glm::vec4 newDir = glm::rotate(glm::mat4(1), glm::radians(angle + angleOffset), glm::vec3(1, 0, 0)) * glm::vec4(dir, 1.0f);
+			dir = glm::vec3(newDir.x, newDir.y, newDir.z);
 		}
 
 		// pitch up
 		else if (ch.compare("^") == 0) {
+			glm::vec4 newDir = glm::rotate(glm::mat4(1), glm::radians(angle + angleOffset), glm::vec3(-1, 0, 0)) * glm::vec4(dir, 1.0f);
+			dir = glm::vec3(newDir.x, newDir.y, newDir.z);
 		}
 
 		// roll left
 		else if (ch.compare("<") == 0) {
+			glm::vec4 newDir = glm::rotate(glm::mat4(1), glm::radians(angle + angleOffset), glm::vec3(0, 1, 0)) * glm::vec4(dir, 1.0f);
+			dir = glm::vec3(newDir.x, newDir.y, newDir.z);
 		}
 
 		// roll right
 		else if (ch.compare(">") == 0) {
+			glm::vec4 newDir = glm::rotate(glm::mat4(1), glm::radians(angle + angleOffset), glm::vec3(0, -1, 0)) * glm::vec4(dir, 1.0f);
+			dir = glm::vec3(newDir.x, newDir.y, newDir.z);
 		}
 	}
+}
+
+void PlantGeometry::draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelLoc, unsigned int ambientLoc, unsigned int diffuseLoc, unsigned int specularLoc, unsigned int shininessLoc) {
+	
+	// Bind to the VAO.
+	glBindVertexArray(vao);
+
+	glLineWidth(lineWidth);
+
+	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(C));
+	glUniform1f(glGetUniformLocation(shaderProgram, "mode"), 2);
+	
+	for (int i = 0; i < this->lines.size(); i += 6) {
+		glDrawArrays(GL_LINES, i, 6);
+	}
+	
+	// Unbind from the VAO.
+	glBindVertexArray(0);
 }

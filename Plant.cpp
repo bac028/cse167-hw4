@@ -147,6 +147,7 @@ void Plant::expand(float num) {
 			str.replace(i, 1, "DD");
 			i = i + 1;
 		}
+
 		else if (ch.compare("X") == 0) {
 
 			if (num < 0.4) {
@@ -248,7 +249,6 @@ void Plant::animate() {
 	if (elapsedTime - lastElapsedTime > 2000 && depth < DEPTH) {
 		depth++;
 		lastElapsedTime = elapsedTime;
-		std::cout << "a ";
 
 	}
 	elapsedTime = elapsedTime / 5000;

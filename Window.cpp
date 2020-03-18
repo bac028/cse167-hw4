@@ -7,15 +7,14 @@ using namespace glm;
 
 namespace {
 	int width, height;
-	string windowTitle("MinecraftBlox");
+	string windowTitle("Bunny Robot");
 
 	Robot* playerObject;
 	Transform* objects;
 	Terrain* terrain;
 	TerrainGeometry* terrainGeometry;
 	Cloud* cloud;
-	PlantGeometry* plantGeometry;
-	Transform* plant;
+	Transform* plants;
 
 
 	vec3 playerCenter(0, 0, 250);
@@ -25,6 +24,7 @@ namespace {
 
 	// movement flags
 	bool holdingW = false, holdingA = false, holdingS = false, holdingD = false, sprinting = false;
+	bool glow = false;
 
 	// for camera rotation
 	float objYaw = -90.0f;
@@ -144,13 +144,12 @@ bool Window::initializeProgram() {
 
 bool Window::initializeObjects() {
 
-	printf("begin initializing objects >>>>");
-
 	objects = new Transform(mat4(1));
 	cloud = new Cloud();
 	cloud->makeEntity(0, NULL, NULL, 80, 0, 0, 0, 0, 50);
 	terrain = new Terrain(256, 256, 4.0f, 32, 32);
 
+	plants = new Transform(mat4(1));
 	createScene();
 
 	playerCenter.y = terrain->GetPointHeight(playerCenter.x, playerCenter.z) + 1.75f;
@@ -162,16 +161,11 @@ bool Window::initializeObjects() {
 	center.z += 5.0f;
 
 	view = lookAt(eye, center, up);
-	objects->addChild(playerObject);
 
 	objects->addChild(terrainGeometry);
-
-	plantGeometry = new PlantGeometry();
-	plant = new Transform(mat4(1));
+	objects->addChild(playerObject);
 
 	//objects->addChild(plantGeometry);
-
-	printf("done initializing objects >>>>");
 
 	return true;
 }
@@ -268,10 +262,12 @@ void Window::idleCallback() {
 
 void Window::displayCallback(GLFWwindow* window) {
 
-	//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glClearColor(0.0f, 0.4f, 0.4f, 0.0f);
 	//glEnable(GL_DEPTH_TEST);
 	handleMovement();
+
 
 	// ------------CLOUD----------------
 	glUseProgram(cloudProgram);
@@ -300,7 +296,7 @@ void Window::displayCallback(GLFWwindow* window) {
 
 	objects->draw(mat4(1), program, modelLoc, ambientLoc, diffuseLoc, specularLoc, shininessLoc);
 
-	plant->draw(mat4(1), program, modelLoc, ambientLoc, diffuseLoc, specularLoc, shininessLoc);
+	plants->draw(mat4(1), program, modelLoc, ambientLoc, diffuseLoc, specularLoc, shininessLoc);
 
 	glfwPollEvents();
 	glfwSwapBuffers(window);
@@ -325,6 +321,7 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
 		case GLFW_KEY_LEFT_CONTROL:
 			sprinting = action != GLFW_RELEASE;
 			break;
+
 	}
 
 	playerObject->setMoving((holdingW || holdingA || holdingS || holdingD) && cameraType != FREE_CAMERA);
@@ -363,6 +360,11 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
 
 				case GLFW_KEY_ESCAPE:
 					glfwSetWindowShouldClose(window, GL_TRUE);
+					break;
+
+				case GLFW_KEY_G:
+					glow = !glow;
+					playerObject->SetGlow(glow);
 					break;
 
 				default:
@@ -408,13 +410,8 @@ void Window::cursor_position_callback(GLFWwindow* window, double xpos, double yp
 			objYaw += pointDirection.x * 100;
 			objPitch += pointDirection.y * 100;
 
-			if (objPitch > 89.9) objPitch = 89.9;
-			if (objPitch < -89.9) objPitch = -89.9;
-
-			if (cameraType == FIRST_PERSON || cameraType == THIRD_PERSON) {
-				objPitch = objPitch > 44.9 ? 44.9 : objPitch;
-				objPitch = objPitch < -44.9 ? -44.9 : objPitch;
-			}
+			objPitch = objPitch > 44.9 ? 44.9 : objPitch;
+			objPitch = objPitch < -44.9 ? -44.9 : objPitch;
 
 			vec3 directionCamera;
 			directionCamera.x = cos(radians(objYaw)) * cos(radians(objPitch));
@@ -424,7 +421,7 @@ void Window::cursor_position_callback(GLFWwindow* window, double xpos, double yp
 
 			up = normalize(cross(normalize(cross(directionCamera, vec3(0, 1, 0))), directionCamera));
 
-			if (cameraType == FREE_CAMERA) center = eye + directionCamera;
+			if (cameraType == FREE_CAMERA) center = eye + vec3(-directionCamera.x, directionCamera.y, -directionCamera.z);
 			
 			if (cameraType == FIRST_PERSON || cameraType == THIRD_PERSON) {
 				mat4 prevModel = playerObject->getModel();
@@ -481,22 +478,6 @@ void Window::scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 
 }
 
-vec3 Window::checkInSkybox(vec4 point) {
-	if (cameraType == FREE_CAMERA) {
-		if (point.x > 95 || point.x < -95) {
-			point.x = eye.x;
-		}
-		if (point.y > 95 || point.y < -95) {
-			point.y = eye.y;
-		}
-		if (point.z > 95 || point.z < -95) {
-			point.z = eye.z;
-		}
-	} 
-
-	return vec3(point.x, point.y, point.z);
-}
-
 bool checkCollision(vec3 objOne, vec3 objTwo){
 	if(playerObject->maxX >= 100 && playerObject->minX <= -100 &&
 	playerObject->maxY >= 100 && playerObject->minY <= -100 &&
@@ -512,9 +493,8 @@ void Window::move(vec3 translation) {
 	vec4 newEye;
 
 	if (cameraType == FREE_CAMERA) {
-
 		newEye = translate(mat4(1), translation) * vec4(eye, 1);
-		eye = checkInSkybox(newEye);
+		eye = newEye;
 		newCenter = translate(mat4(1), translation) * vec4(center, 1);
 		center = vec3(newCenter.x, newCenter.y, newCenter.z);
 	}
@@ -539,9 +519,9 @@ void Window::move(vec3 translation) {
 
 void Window::handleMovement() {
 
-	float speedModifier = sprinting ? 10.00f : 5.0f;
+	float speedModifier = sprinting ? 15.00f : 5.0f;
 	vec3 direction = 0.01f * speedModifier * normalize((vec3(center.x, 0, center.z) - vec3(eye.x, 0, eye.z)));
-	playerObject->animationSpeed = sprinting ? 3.0f : 0.2f;
+	playerObject->animationSpeed = sprinting ? 5.0f : 0.2f;
 
 	// forward
 	if (holdingW) {
@@ -573,7 +553,7 @@ void Window::createScene() {
 	float height;
 	vec3 terrainsize, norm;
 
-	srand(20202);
+	srand(time(NULL));
 
 	terrain->reset();
 	terrain->fault(90, 4.0f, 0.999f);
@@ -585,44 +565,31 @@ void Window::createScene() {
 	vector<vec3> textures;
 	vector<unsigned int> faces;
 
-	float maxX = -10000.0f, maxY = -10000.0f, maxZ = -10000.0f;
-	float minX = 10000.0f, minY = 10000.0f, minZ = 10000.0f;
-
 	VertexStr* vertices = terrain->getVertices();
 	for (int i = 0; i < terrain->m_iWidth; i++) {
 		for (int j = 0; j < terrain->m_iHeight; j++) {
 			VertexStr currVertex = vertices[j + i * terrain->m_iWidth];
 
-			// gets max/min
-			if (currVertex.position.x > maxX) maxX = currVertex.position.x;
-			if (currVertex.position.x < minX) minX = currVertex.position.x;
-			if (currVertex.position.y > maxY) maxY = currVertex.position.y;
-			if (currVertex.position.y < minY) minY = currVertex.position.y;
-			if (currVertex.position.z > maxZ) maxZ = currVertex.position.z;
-			if (currVertex.position.z < minZ) minZ = currVertex.position.z;
-
 			positions.push_back(currVertex.position);
 			normals.push_back(currVertex.normal);
 			textures.push_back(currVertex.texture);
-			//printf("\nVertex (%d,%d)\n", i, j);
-			//printf("position: [%f, %f, %f]\n", currVertex.position.x, currVertex.position.y, currVertex.position.z);
-			//printf("normal: [%f, %f, %f]\n", currVertex.normal.x, currVertex.normal.y, currVertex.normal.z);
-			//printf("texture: [%f, %f, %f]\n\n", currVertex.texture.x, currVertex.texture.y, currVertex.texture.z);
 		}
 	}
-
-	float centerX = (float)((double)maxX + minX) / 2.0;
-	float centerY = (float)((double)maxY + minY) / 2.0;
-	float centerZ = (float)((double)maxZ + minZ) / 2.0;
-
-	// center points
-	/*for (int i = 0; i < positions.size(); i++) {
-		positions.at(i) = glm::vec3(positions.at(i).x - centerX, positions.at(i).y - centerY, positions.at(i).z - centerZ);
-	}*/
 
 	SubsetStr* subsets = terrain->m_pSubsets;
 	for (int i = 0; i < subsets->NumTriangles; i++) {
 		faces.push_back(subsets->pIndices[i]);
+	}
+
+	// add trees to terrain
+	for (int i = 0; i < 10; i++) {
+
+		int x = (1000 * rand()) / RAND_MAX - 500;
+		int z = (300 * rand()) / RAND_MAX + 200;
+		int y = terrain->GetPointHeight(x, z);
+
+		PlantGeometry* plantGeometry = new PlantGeometry(vec3(x, y, z));
+		plants->addChild(plantGeometry);
 	}
 
 	terrainGeometry = new TerrainGeometry(positions, normals, textures, faces);

@@ -5,7 +5,6 @@
 using namespace std;
 
 Terrain::Terrain(GLuint width, GLuint height, GLfloat tilesize, GLuint htexturetiles, GLuint vtexturetiles){
- 	printf("Terrain ctor begin --\n");
 	m_hProgram = glCreateProgramObjectARB();
 
 	//Define width and height
@@ -19,14 +18,10 @@ Terrain::Terrain(GLuint width, GLuint height, GLfloat tilesize, GLuint htexturet
 	m_fHsize = (float(m_iWidth - 1)) * m_fTileSize;
 	m_fVsize = (float(m_iHeight - 1)) * m_fTileSize;
 
-	printf("SetNumVertices\n");
 	SetNumVertices(m_iWidth * m_iHeight);
-	printf("SetNumSubsets\n");
 	SetNumSubsets(1);
-	printf("ResizeSubsets\n");
 	ResizeSubset(0, (2 * (m_iWidth - 1) * (m_iHeight - 1)));
 
-	printf("Generate Base Geometry\n");
 	//Generete base geometry
 	GLuint i, j;
 	for (i = 0;i < m_iHeight;i++)
@@ -47,12 +42,10 @@ Terrain::Terrain(GLuint width, GLuint height, GLfloat tilesize, GLuint htexturet
 		}
 	}
 
-	printf("GenerateVertexBuffer\n");
 	GenerateVertexBuffer();
 
 	m_fMedianHeight = 0.0f;
 
-	printf("Generate indices\n");
 	//Generate indices
 	GLuint state = 0;
 	GLuint ctr = 0;
@@ -117,21 +110,12 @@ Terrain::Terrain(GLuint width, GLuint height, GLfloat tilesize, GLuint htexturet
 	m_pSubsets[0].Material.Ambient[3] = 1.0f;
 	m_pSubsets[0].Material.Shininess[0] = 80.0f;
 
-	/*
-	printf("Get textures\n");
-	m_hTex[0] = SOIL_load_OGL_texture("Textures\\Rock.dds", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS | SOIL_FLAG_POWER_OF_TWO | SOIL_FLAG_TEXTURE_REPEATS);
-	m_hTex[1] = SOIL_load_OGL_texture("Textures\\Sand.dds", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS | SOIL_FLAG_POWER_OF_TWO | SOIL_FLAG_TEXTURE_REPEATS);
-	m_hTex[2] = SOIL_load_OGL_texture("Textures\\Grass.dds", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS | SOIL_FLAG_POWER_OF_TWO | SOIL_FLAG_TEXTURE_REPEATS);
-	m_hTex[3] = SOIL_load_OGL_texture("Textures\\Snow.dds", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS | SOIL_FLAG_POWER_OF_TWO | SOIL_FLAG_TEXTURE_REPEATS);
-	printf("Terrain ctor end --\n");
-	*/
 }
 
 Terrain::~Terrain() {
 }
 
 void Terrain::reset(float height) {
-	printf("terrain->reset() start\n");
 	GLuint i, j;
 	for (i = 0;i < m_iHeight;i++)
 	{
@@ -144,7 +128,6 @@ void Terrain::reset(float height) {
 	}
 	NormalGen();
 	m_fMedianHeight = height;
-	printf("terrain->reset() end\n");
 }
 
 void Terrain::fault(GLuint iterations, float initdisplacement, float dampening) {
@@ -547,7 +530,6 @@ void Terrain::SetNumSubsets(GLuint numsubsets) {
 		m_pSubsets = new SubsetStr[numsubsets];
 	}
 	catch (exception e) {
-		printf("Exception: setnumsubsets %s\n", e.what());
 	}
 }
 

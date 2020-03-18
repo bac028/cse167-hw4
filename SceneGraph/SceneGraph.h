@@ -117,10 +117,21 @@ public:
 	//addTextures(terrain->m_hTex);
 };
 
+class RobotGeometry : public Geometry {
+public:
+	bool halo = false;
+	RobotGeometry();
+	~RobotGeometry();
+
+	void draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelLoc, unsigned int ambientLoc, unsigned int diffuseLoc, unsigned int specularLoc, unsigned int shininessLoc);
+};
+
 class Robot : public Transform {
 protected:
 	Transform* eye;
 public:
+	bool halo;
+	RobotGeometry* headGlowGeometry;
 	Robot(glm::mat4 M);
 	~Robot();
 
@@ -128,28 +139,26 @@ public:
 		glm::mat4 globalPosition = M * eye->getModel();
 		return glm::vec3(globalPosition[3].x, globalPosition[3].y, globalPosition[3].z); 
 	};
+	void SetGlow(bool halo);
+	void draw();
 };
 
-class RobotGeometry : public Geometry {
-public:
-	RobotGeometry();
-	~RobotGeometry();
 
-	void draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelLoc, unsigned int ambientLoc, unsigned int diffuseLoc, unsigned int specularLoc, unsigned int shininessLoc);
-};
 
 class PlantGeometry : public Geometry {
 protected:
 	std::string LSystemString;
 	float lineWidth = 5;
 	float segmentLength = 2;
-	float angle = 20;
+	float angle = 30;
 	glm::vec3 position = glm::vec3(0, 10, 250);
+	std::vector<float> lines;
 
 public:
-	PlantGeometry();
+	PlantGeometry(glm::vec3 startingPosition);
 	~PlantGeometry();
 	void addLevel();
+	void generatePoints();
 
 	void draw(glm::mat4 C, unsigned int shaderProgram, unsigned int modelLoc, unsigned int ambientLoc, unsigned int diffuseLoc, unsigned int specularLoc, unsigned int shininessLoc);
 
